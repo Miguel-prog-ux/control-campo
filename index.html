@@ -534,6 +534,22 @@ input[type=file]{display:none}
 #screen-cuadrillas.active ~ * .fab-cua,
 #screen-cuadrillas.active .fab-cua{position:fixed;bottom:80px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--go);color:#fff;font-size:28px;border:none;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:50;line-height:1}
 .fab-cua.vis{display:flex}
+
+/* ── Photo picker modal ─────────────────── */
+.foto-picker{display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--white);border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 20px rgba(0,0,0,.2);z-index:200;padding:16px}
+.foto-picker.open{display:block}
+.foto-picker-title{font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px}
+.foto-picker-btn{display:flex;align-items:center;gap:12px;width:100%;
+  padding:14px 16px;border:none;background:transparent;
+  font-size:16px;font-family:'Barlow',sans-serif;color:var(--ink);
+  border-bottom:1px solid var(--line2);cursor:pointer}
+.foto-picker-btn:last-child{border-bottom:none}
+.foto-picker-btn:active{background:var(--bg)}
+.foto-picker-icon{font-size:22px;width:28px;text-align:center}
+.foto-picker-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}
+.foto-picker-overlay.open{display:block}
 </style>
 </head>
 <body>
@@ -649,7 +665,7 @@ input[type=file]{display:none}
       </div>
       <textarea class="bit-textarea" id="bit-nota-txt" placeholder="Describe lo ocurrido en campo…"></textarea>
       <div class="bit-foto-row">
-        <button class="btn-foto-small" onclick="document.getElementById('bit-foto-input').click()">📷 Agregar foto</button>
+        <button class="btn-foto-small" onclick="abrirPickerBit()">📷 Agregar foto</button>
         <div class="bit-foto-thumbs" id="bit-foto-thumbs"></div>
       </div>
       <button class="btn-bit-save" onclick="guardarNota()">GUARDAR NOTA</button>
@@ -712,6 +728,35 @@ input[type=file]{display:none}
   </div>
 
 
+<!-- Foto picker -->
+<div class="foto-picker-overlay" id="foto-picker-overlay" onclick="cerrarFotoPicker()"></div>
+<div class="foto-picker" id="foto-picker">
+  <div class="foto-picker-title">Agregar foto</div>
+  <button class="foto-picker-btn" onclick="usarCamara()">
+    <span class="foto-picker-icon">📷</span> Tomar foto
+  </button>
+  <button class="foto-picker-btn" onclick="usarGaleria()">
+    <span class="foto-picker-icon">🖼️</span> Elegir de galería
+  </button>
+  <button class="foto-picker-btn" onclick="cerrarFotoPicker()" style="color:var(--muted)">
+    <span class="foto-picker-icon">✕</span> Cancelar
+  </button>
+</div>
+
+<!-- Foto picker bitácora -->
+<div class="foto-picker" id="bit-foto-picker">
+  <div class="foto-picker-title">Agregar foto a la nota</div>
+  <button class="foto-picker-btn" onclick="usarCamaraBit()">
+    <span class="foto-picker-icon">📷</span> Tomar foto
+  </button>
+  <button class="foto-picker-btn" onclick="usarGaleriaBit()">
+    <span class="foto-picker-icon">🖼️</span> Elegir de galería
+  </button>
+  <button class="foto-picker-btn" onclick="cerrarFotoPicker()" style="color:var(--muted)">
+    <span class="foto-picker-icon">✕</span> Cancelar
+  </button>
+</div>
+
 <!-- Bottom bar -->
 <div class="bottom-bar" id="bottom-bar" style="display:none">
   <button class="btn-sec" onclick="switchToScreen('bitacora')">📋</button>
@@ -728,8 +773,10 @@ input[type=file]{display:none}
 <div class="toast" id="toast"></div>
 
 <!-- File inputs -->
-<input type="file" id="foto-input" accept="image/*" onchange="onFoto(event)">
-<input type="file" id="bit-foto-input" accept="image/*" multiple onchange="onBitFoto(event)">
+<input type="file" id="foto-input-cam" accept="image/*" capture="environment" onchange="onFoto(event)">
+<input type="file" id="foto-input-gal" accept="image/*" onchange="onFoto(event)">
+<input type="file" id="bit-foto-input-cam" accept="image/*" capture="environment" multiple onchange="onBitFoto(event)">
+<input type="file" id="bit-foto-input-gal" accept="image/*" multiple onchange="onBitFoto(event)">
 
 <script charset="utf-8">
 // ═══════════════════════════════════════════════════
@@ -1238,9 +1285,37 @@ function toggleCorr(id){
 // ═══════════════════════════════════════════════════
 function pedirFoto(id){
   _activoCardId=id;
-  var inp=document.getElementById('foto-input');
-  inp.value='';
-  inp.click();
+  document.getElementById('foto-picker-overlay').classList.add('open');
+  document.getElementById('foto-picker').classList.add('open');
+}
+function abrirPickerBit(){
+  document.getElementById('foto-picker-overlay').classList.add('open');
+  document.getElementById('bit-foto-picker').classList.add('open');
+}
+function cerrarFotoPicker(){
+  document.getElementById('foto-picker-overlay').classList.remove('open');
+  document.getElementById('foto-picker').classList.remove('open');
+  document.getElementById('bit-foto-picker').classList.remove('open');
+}
+function usarCamara(){
+  cerrarFotoPicker();
+  var inp=document.getElementById('foto-input-cam');
+  inp.value='';inp.click();
+}
+function usarGaleria(){
+  cerrarFotoPicker();
+  var inp=document.getElementById('foto-input-gal');
+  inp.value='';inp.click();
+}
+function usarCamaraBit(){
+  cerrarFotoPicker();
+  var inp=document.getElementById('bit-foto-input-cam');
+  inp.value='';inp.click();
+}
+function usarGaleriaBit(){
+  cerrarFotoPicker();
+  var inp=document.getElementById('bit-foto-input-gal');
+  inp.value='';inp.click();
 }
 
 function onFoto(ev){
