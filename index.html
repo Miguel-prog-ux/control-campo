@@ -521,6 +521,19 @@ input[type=file]{display:none}
 .cua-res-j{font-family:'Roboto Mono',monospace;font-size:13px;font-weight:600;color:var(--go)}
 .cua-res-trab{font-size:11px;color:var(--muted)}
 
+
+/* ── FAB Cuadrillas ─────────────────── */
+.fab-cua{position:fixed;bottom:80px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--go);color:#fff;font-size:28px;border:none;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:50;line-height:1}
+.fab-cua.vis{
+  position:fixed;bottom:80px;right:16px;width:52px;height:52px;
+  border-radius:50%;background:var(--go);color:#fff;
+  font-size:28px;border:none;box-shadow:0 3px 10px rgba(0,0,0,.3);
+  cursor:pointer;display:none;align-items:center;justify-content:center;
+  z-index:50;line-height:1
+}
+#screen-cuadrillas.active ~ * .fab-cua,
+#screen-cuadrillas.active .fab-cua{position:fixed;bottom:80px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--go);color:#fff;font-size:28px;border:none;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:50;line-height:1}
+.fab-cua.vis{display:flex}
 </style>
 </head>
 <body>
@@ -646,6 +659,59 @@ input[type=file]{display:none}
   </div>
 </div>
 
+  <!-- CUADRILLAS -->
+  <div id="screen-cuadrillas" class="screen">
+    <div style="padding:10px 10px 0">
+      <div id="cua-resumen-wrap"></div>
+      <!-- KPIs cuadrillas -->
+      <div style="display:flex;gap:8px;margin:10px 0">
+        <div style="flex:1;background:var(--white);border-radius:10px;padding:10px;text-align:center;border:1.5px solid var(--line2)">
+          <div style="font-size:22px;font-weight:700;color:var(--go)" id="ck-trab">0</div>
+          <div style="font-size:10px;color:var(--muted)">Trabajadores</div>
+        </div>
+        <div style="flex:1;background:var(--white);border-radius:10px;padding:10px;text-align:center;border:1.5px solid var(--line2)">
+          <div style="font-size:22px;font-weight:700;color:var(--go)" id="ck-jornales">0.0</div>
+          <div style="font-size:10px;color:var(--muted)">Jornales</div>
+        </div>
+        <div style="flex:1;background:var(--white);border-radius:10px;padding:10px;text-align:center;border:1.5px solid var(--line2)">
+          <div style="font-size:22px;font-weight:700;color:var(--amber)" id="ck-conceptos">0</div>
+          <div style="font-size:10px;color:var(--muted)">Conceptos</div>
+        </div>
+      </div>
+      <!-- Selector de fecha -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <label style="font-size:12px;color:var(--muted)">Fecha:</label>
+        <input type="date" id="cua-fecha" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--line2);background:var(--white);color:var(--ink);font-size:14px" onchange="renderCuadrillas()">
+      </div>
+    </div>
+
+    <!-- Formulario nueva asistencia -->
+    <div class="cua-form" id="cua-form">
+      <div class="cua-form-title">Registrar asistencia</div>
+      <select class="cua-inp" id="cua-concepto-sel">
+        <option value="">— Selecciona concepto —</option>
+      </select>
+      <input class="cua-inp" id="cua-trabajador-inp" type="text" placeholder="Nombre del trabajador" autocorrect="off">
+      <select class="cua-inp" id="cua-oficio-sel">
+        <option>Albañil</option><option>Ayudante</option><option>Fierrero</option>
+        <option>Carpintero</option><option>Plomero</option><option>Electricista</option>
+        <option>Soldador</option><option>Pintor</option><option>Otro</option>
+      </select>
+      <input class="cua-inp" id="cua-jornales-inp" type="number" min="0.5" max="2" step="0.5" value="1" placeholder="Jornales">
+      <textarea class="cua-inp" id="cua-nota-inp" placeholder="Nota (opcional)" rows="2" style="resize:none"></textarea>
+      <button class="btn-main" style="width:100%;margin-top:8px" onclick="guardarAsistencia()">✓ GUARDAR ASISTENCIA</button>
+      <button onclick="toggleCuaForm()" style="width:100%;margin-top:6px;padding:10px;border:none;background:transparent;color:var(--muted);font-size:14px;cursor:pointer">Cancelar</button>
+    </div>
+
+    <div class="cua-list" id="cua-list">
+      <div class="cua-empty">Sin asistencia registrada para este día</div>
+    </div>
+
+    <!-- FAB agregar -->
+    <button class="fab-cua" onclick="toggleCuaForm()" id="fab-cua">+</button>
+  </div>
+
+
 <!-- Bottom bar -->
 <div class="bottom-bar" id="bottom-bar" style="display:none">
   <button class="btn-sec" onclick="switchToScreen('bitacora')">📋</button>
@@ -662,8 +728,8 @@ input[type=file]{display:none}
 <div class="toast" id="toast"></div>
 
 <!-- File inputs -->
-<input type="file" id="foto-input" accept="image/*" onchange="onFoto(event)">
-<input type="file" id="bit-foto-input" accept="image/*" multiple onchange="onBitFoto(event)">
+<input type="file" id="foto-input" accept="image/*" capture="environment" onchange="onFoto(event)">
+<input type="file" id="bit-foto-input" accept="image/*" capture="environment" multiple onchange="onBitFoto(event)">
 
 <script charset="utf-8">
 // ═══════════════════════════════════════════════════
@@ -1394,6 +1460,8 @@ function renderBitacora(){
 // NAV
 // ═══════════════════════════════════════════════════
 function switchScreen(name,el){
+  var fab = document.getElementById('fab-cua');
+  if(fab) fab.style.display = (name==='cuadrillas') ? 'flex' : 'none';
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
   document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
   document.getElementById('screen-'+name).classList.add('active');
@@ -1432,6 +1500,8 @@ function cerrarLightbox(){
 var _cuaFormOpen = false;
 
 function initCuadrillas(){
+  var fab = document.getElementById('fab-cua');
+  if(fab) fab.style.display = 'flex';
   // Setear fecha de hoy en el picker
   var d = new Date();
   var iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
