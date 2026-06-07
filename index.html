@@ -1308,13 +1308,16 @@ function cerrarFotoPicker(){
 }
 function usarCamara(){
   cerrarFotoPicker();
-  // Intentar getUserMedia primero (más compatible en Android)
-  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-    abrirCamaraNativa(false);
-  } else {
-    var inp=document.getElementById('foto-input-cam');
-    inp.value='';inp.click();
-  }
+  setTimeout(function(){
+    var inp=document.createElement('input');
+    inp.type='file';
+    inp.accept='image/*';
+    inp.capture='environment';
+    inp.onchange=function(e){onFotoFromInput(e,false);};
+    document.body.appendChild(inp);
+    inp.click();
+    setTimeout(function(){document.body.removeChild(inp);},5000);
+  },300);
 }
 function usarGaleria(){
   cerrarFotoPicker();
@@ -1323,12 +1326,17 @@ function usarGaleria(){
 }
 function usarCamaraBit(){
   cerrarFotoPicker();
-  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-    abrirCamaraNativa(true);
-  } else {
-    var inp=document.getElementById('bit-foto-input-cam');
-    inp.value='';inp.click();
-  }
+  setTimeout(function(){
+    var inp=document.createElement('input');
+    inp.type='file';
+    inp.accept='image/*';
+    inp.capture='environment';
+    inp.multiple=true;
+    inp.onchange=function(e){onFotoFromInput(e,true);};
+    document.body.appendChild(inp);
+    inp.click();
+    setTimeout(function(){document.body.removeChild(inp);},5000);
+  },300);
 }
 function usarGaleriaBit(){
   cerrarFotoPicker();
@@ -1336,6 +1344,23 @@ function usarGaleriaBit(){
   inp.value='';inp.click();
 }
 
+
+function onFotoFromInput(ev,esBit){
+  var files=ev.target.files;
+  if(!files||!files.length)return;
+  var pending=files.length;
+  Array.from(files).forEach(function(file){
+    comprimirImagen(file,600,function(b64){
+      if(esBit){
+        _bitFotoBuffer.push(b64);
+        if(--pending===0)renderBitFotos();
+      } else {
+        _fotoBuffer.push(b64);
+        if(--pending===0)renderPreviews(_activoCardId,_fotoBuffer);
+      }
+    });
+  });
+}
 var _camaraBit=false;
 function abrirCamaraNativa(esBit){
   _camaraBit=esBit;
