@@ -757,6 +757,15 @@ input[type=file]{display:none}
   </button>
 </div>
 
+<!-- Cámara nativa -->
+<div id="camara-modal" style="display:none;position:fixed;inset:0;background:#000;z-index:300;flex-direction:column;align-items:center;justify-content:center">
+  <video id="camara-video" style="width:100%;max-height:75vh;object-fit:cover" playsinline autoplay></video>
+  <div style="display:flex;gap:16px;padding:20px">
+    <button onclick="cerrarCamaraNativa()" style="flex:1;padding:14px;border-radius:10px;border:2px solid #fff;background:transparent;color:#fff;font-size:16px;font-family:'Barlow',sans-serif">✕ Cancelar</button>
+    <button onclick="capturarFoto()" style="flex:2;padding:14px;border-radius:10px;border:none;background:#16A34A;color:#fff;font-size:18px;font-family:'Barlow',sans-serif;font-weight:700">📷 Capturar</button>
+  </div>
+</div>
+
 <!-- Bottom bar -->
 <div class="bottom-bar" id="bottom-bar" style="display:none">
   <button class="btn-sec" onclick="switchToScreen('bitacora')">📋</button>
@@ -1299,8 +1308,13 @@ function cerrarFotoPicker(){
 }
 function usarCamara(){
   cerrarFotoPicker();
-  var inp=document.getElementById('foto-input-cam');
-  inp.value='';inp.click();
+  // Intentar getUserMedia primero (más compatible en Android)
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    abrirCamaraNativa(false);
+  } else {
+    var inp=document.getElementById('foto-input-cam');
+    inp.value='';inp.click();
+  }
 }
 function usarGaleria(){
   cerrarFotoPicker();
@@ -1309,13 +1323,79 @@ function usarGaleria(){
 }
 function usarCamaraBit(){
   cerrarFotoPicker();
-  var inp=document.getElementById('bit-foto-input-cam');
-  inp.value='';inp.click();
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    abrirCamaraNativa(true);
+  } else {
+    var inp=document.getElementById('bit-foto-input-cam');
+    inp.value='';inp.click();
+  }
 }
 function usarGaleriaBit(){
   cerrarFotoPicker();
   var inp=document.getElementById('bit-foto-input-gal');
   inp.value='';inp.click();
+}
+
+var _camaraBit=false;
+function abrirCamaraNativa(esBit){
+  _camaraBit=esBit;
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
+    .then(function(stream){
+      var modal=document.getElementById('camara-modal');
+      var video=document.getElementById('camara-video');
+      modal.style.display='flex';
+      video.srcObject=stream;
+      video.play();
+    })
+    .catch(function(err){
+      // Fallback al input normal
+      if(esBit){
+        var inp=document.getElementById('bit-foto-input-cam');
+        inp.value='';inp.click();
+      } else {
+        var inp=document.getElementById('foto-input-cam');
+        inp.value='';inp.click();
+      }
+    });
+}
+function capturarFoto(){
+  var video=document.getElementById('camara-video');
+  var canvas=document.createElement('canvas');
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+  var b64=canvas.toDataURL('image/jpeg',0.8);
+  cerrarCamaraNativa();
+  comprimirB64(b64,600,function(compressed){
+    if(_camaraBit){
+      _bitFotoBuffer.push(compressed);
+      renderBitFotos();
+    } else {
+      _fotoBuffer.push(compressed);
+      renderPreviews(_activoCardId,_fotoBuffer);
+    }
+  });
+}
+function cerrarCamaraNativa(){
+  var video=document.getElementById('camara-video');
+  var modal=document.getElementById('camara-modal');
+  if(video.srcObject){
+    video.srcObject.getTracks().forEach(function(t){t.stop()});
+    video.srcObject=null;
+  }
+  modal.style.display='none';
+}
+function comprimirB64(b64,maxSize,cb){
+  var img=new Image();
+  img.onload=function(){
+    var canvas=document.createElement('canvas');
+    var w=img.width,h=img.height;
+    if(w>h&&w>maxSize){h=Math.round(h*maxSize/w);w=maxSize}
+    else if(h>maxSize){w=Math.round(w*maxSize/h);h=maxSize}
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    cb(canvas.toDataURL('image/jpeg',.72));
+  };
+  img.src=b64;
 }
 
 function onFoto(ev){
