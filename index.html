@@ -1419,9 +1419,26 @@ function onFoto(ev){
       _fotoBuffer.push(b64);
       // Guardar en store para persistir al cerrar/abrir panel
       if(id){_fotoStore[id]=_fotoBuffer.slice();console.log('Foto guardada en store para '+id+', total:',_fotoStore[id].length);}
+      // Auto-guardar foto como evidencia inmediatamente
+      guardarFotoEvidencia(id, b64);
       if(--pending===0)renderPreviews(id,_fotoBuffer);
     });
   });
+}
+
+function guardarFotoEvidencia(conceptoId, b64){
+  if(!conceptoId||!b64)return;
+  var c=S.conceptos?S.conceptos.find(function(x){return x.id===conceptoId}):null;
+  var entry={
+    id:uid(),tipo:'evidencia',fecha:hoy(),hora:hora(),
+    supervisor:S.supervisor,conceptoId:conceptoId,
+    concepto:c?c.nombre:'',fotos:[b64],vol:0,correccion:false
+  };
+  if(!S.bitacora)S.bitacora=[];
+  S.bitacora.push(entry);
+  save();
+  if(S.useFirebase)pushFirebase();
+  toast('Foto guardada como evidencia');
 }
 
 function comprimirImagen(file,maxSize,cb){
@@ -1473,8 +1490,10 @@ function guardarAvance(id){
   if(!S.dias[id])S.dias[id]=[];
   var f=hoy();
   if(S.dias[id].indexOf(f)<0)S.dias[id].push(f);
+  // Usar _fotoStore[id] como fuente primaria de fotos (más confiable que _fotoBuffer)
+  var fotosEntry=(_fotoStore[id]&&_fotoStore[id].length>0)?_fotoStore[id].slice():_fotoBuffer.slice();
   var entry={id:uid(),tipo:'avance',fecha:f,hora:hora(),supervisor:S.supervisor,
-    conceptoId:id,concepto:c.nombre,vol:val,unidad:c.unidad,fotos:_fotoBuffer.slice(),correccion:false};
+    conceptoId:id,concepto:c.nombre,vol:val,unidad:c.unidad,fotos:fotosEntry,correccion:false};
   if(nota)entry.nota=nota;
   S.bitacora.push(entry);
   _fotoBuffer=[];
