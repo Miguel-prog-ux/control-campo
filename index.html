@@ -1101,51 +1101,79 @@ function procesarCatalogo(cat){
   renderTodo();
 }
 
+function mergeRemoteIntoLocal(data){
+  if(!data)return false;
+  var changed=false;
+  if(data.avances){
+    Object.keys(data.avances).forEach(function(id){
+      if((data.avances[id]||0)>(S.avances[id]||0)){S.avances[id]=data.avances[id];changed=true}
+    });
+  }
+  if(data.bitacora){
+    var localIds=S.bitacora.map(function(b){return b.id});
+    var remotos=Array.isArray(data.bitacora)?data.bitacora:Object.values(data.bitacora);
+    remotos.forEach(function(b){
+      if(b&&b.id&&localIds.indexOf(b.id)<0){
+        // No importar fotos del remoto (pueden ser pesadas)
+        S.bitacora.push(Object.assign({},b,{fotos:b.fotos||[]}));
+        changed=true;
+      }
+    });
+  }
+  if(data.asistencia){
+    if(!S.asistencia)S.asistencia=[];
+    var localAsiIds=S.asistencia.map(function(a){return a.id});
+    var remotosAsi=Array.isArray(data.asistencia)?data.asistencia:Object.values(data.asistencia);
+    remotosAsi.forEach(function(a){
+      if(a&&a.id&&localAsiIds.indexOf(a.id)<0){
+        S.asistencia.push(a);
+        changed=true;
+      }
+    });
+  }
+  if(changed)save();
+  return changed;
+}
+
 function leerAvancesFirebase(base){
   var url=(base||S.firebaseUrl.replace(/\/$/, ''))+'/avances/'+encodeURIComponent(S.obra)+'.json';
   fetch(url)
     .then(function(r){return r.json()})
     .then(function(data){
-      if(!data)return;
-      var changed=false;
-      if(data.avances){
-        Object.keys(data.avances).forEach(function(id){
-          if((data.avances[id]||0)>(S.avances[id]||0)){S.avances[id]=data.avances[id];changed=true}
-        });
-      }
-      if(data.bitacora){
-        var localIds=S.bitacora.map(function(b){return b.id});
-        var remotos=Array.isArray(data.bitacora)?data.bitacora:Object.values(data.bitacora);
-        remotos.forEach(function(b){
-          if(b&&b.id&&localIds.indexOf(b.id)<0){
-            // No importar fotos del remoto (pueden ser pesadas)
-            S.bitacora.push(Object.assign({},b,{fotos:b.fotos||[]}));
-            changed=true;
-          }
-        });
-      }
-      if(changed){save();renderTodo();renderBitacora();toast('↓ Datos actualizados desde oficina')}
+      var changed=mergeRemoteIntoLocal(data);
+      if(changed){renderTodo();renderBitacora();toast('↓ Datos actualizados desde oficina')}
     }).catch(function(){});
 }
 
 function pushFirebase(cb){
   if(!S.useFirebase||!S.firebaseUrl)return;
-  var url=S.firebaseUrl.replace(/\/$/,'')+'/avances/'+encodeURIComponent(S.obra)+'.json';
-  // Reducir peso: enviar fotos comprimidas o sin fotos si son muy pesadas
-  var bitSinFotos=S.bitacora.map(function(b){
-    if(!b.fotos||!b.fotos.length)return b;
-    // Incluir fotos pequeñas (<80KB), omitir las grandes
-    var fotosOk=b.fotos.filter(function(f){return f&&f.length<200000});
-    return Object.assign({},b,{fotos:fotosOk});
+  var base=S.firebaseUrl.replace(/\/$/,'');
+  var url=base+'/avances/'+encodeURIComponent(S.obra)+'.json';
+  // Antes de escribir, bajar lo último de Firebase y combinarlo con lo local
+  // (por id, sin duplicar) — así no se borran cambios de otros dispositivos
+  // que hayan sincronizado mientras este estaba sin conexión.
+  fetch(url).then(function(r){return r.json()}).catch(function(){return null}).then(function(remote){
+    if(remote) mergeRemoteIntoLocal(remote);
+    // Reducir peso: enviar fotos comprimidas o sin fotos si son muy pesadas
+    var bitSinFotos=S.bitacora.map(function(b){
+      if(!b.fotos||!b.fotos.length)return b;
+      // Incluir fotos pequeñas (<80KB), omitir las grandes
+      var fotosOk=b.fotos.filter(function(f){return f&&f.length<200000});
+      return Object.assign({},b,{fotos:fotosOk});
+    });
+    var diasC={};
+    if(S.dias){Object.keys(S.dias).forEach(function(id){diasC[id]=(S.dias[id]||[]).length})}
+    var data={obra:S.obra,timestamp:new Date().toISOString(),supervisor:S.supervisor,avances:S.avances,dias:diasC,bitacora:bitSinFotos,asistencia:S.asistencia||[]};
+    fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(function(r){
+        if(r.ok){
+          S.pendingSync=false;save();actualizarPendiente();toast('✓ Sincronizado con oficina');
+          renderTodo();renderBitacora();
+          if(cb)cb();
+        }
+        else{S.pendingSync=true;save();actualizarPendiente();toast('Error al sincronizar ('+r.status+')')}
+      }).catch(function(){S.pendingSync=true;save();actualizarPendiente();toast('Sin conexión — guardado local')});
   });
-  var diasC={};
-  if(S.dias){Object.keys(S.dias).forEach(function(id){diasC[id]=(S.dias[id]||[]).length})}
-  var data={obra:S.obra,timestamp:new Date().toISOString(),supervisor:S.supervisor,avances:S.avances,dias:diasC,bitacora:bitSinFotos,asistencia:S.asistencia||[]};
-  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-    .then(function(r){
-      if(r.ok){S.pendingSync=false;save();actualizarPendiente();toast('✓ Sincronizado con oficina');if(cb)cb()}
-      else{S.pendingSync=true;save();actualizarPendiente();toast('Error al sincronizar ('+r.status+')')}
-    }).catch(function(){S.pendingSync=true;save();actualizarPendiente();toast('Sin conexión — guardado local')});
 }
 
 function sincronizar(){
