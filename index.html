@@ -1236,6 +1236,41 @@ function renderCards(){
   });
 }
 
+// ── Deslizar entre partidas (conceptos) sin volver arriba ──
+function listaPartidas(){
+  var partidas=['Todos'];
+  S.conceptos.forEach(function(c){if(partidas.indexOf(c.partida)<0)partidas.push(c.partida)});
+  return partidas;
+}
+function irAPartida(delta){
+  var partidas=listaPartidas();
+  var idx=partidas.indexOf(S.filtro);
+  if(idx<0)idx=0;
+  var nuevo=idx+delta;
+  if(nuevo<0||nuevo>=partidas.length)return;
+  S.filtro=partidas[nuevo];
+  renderFiltros();
+  renderCards();
+  var activo=document.querySelector('.ftab.active');
+  if(activo)activo.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+}
+(function(){
+  var touchStartX=0,touchStartY=0,touching=false;
+  var cardsEl=document.getElementById('cards-container');
+  cardsEl.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1)return;
+    touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;touching=true;
+  },{passive:true});
+  cardsEl.addEventListener('touchend',function(e){
+    if(!touching)return;touching=false;
+    var dx=e.changedTouches[0].clientX-touchStartX;
+    var dy=e.changedTouches[0].clientY-touchStartY;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){
+      if(dx<0)irAPartida(1);else irAPartida(-1);
+    }
+  },{passive:true});
+})();
+
 function crearCard(c){
   var acum=S.avances[c.id]||0;
   var cont=c.contratado||1;
