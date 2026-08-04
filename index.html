@@ -719,11 +719,13 @@ input[type=file]{display:none}
         <option value="">— Selecciona concepto —</option>
       </select>
       <input class="cua-inp" id="cua-trabajador-inp" type="text" placeholder="Nombre del trabajador" autocorrect="off">
-      <select class="cua-inp" id="cua-oficio-sel">
+      <input class="cua-inp" id="cua-oficio-sel" list="cua-oficio-list" placeholder="Oficio / categoría" autocorrect="off">
+      <datalist id="cua-oficio-list">
+        <option>Supervisor</option><option>Sobrestante</option><option>Cabo</option>
         <option>Albañil</option><option>Ayudante</option><option>Fierrero</option>
         <option>Carpintero</option><option>Plomero</option><option>Electricista</option>
         <option>Soldador</option><option>Pintor</option><option>Otro</option>
-      </select>
+      </datalist>
       <input class="cua-inp" id="cua-jornales-inp" type="number" min="0.5" max="2" step="0.5" value="1" placeholder="Jornales">
       <textarea class="cua-inp" id="cua-nota-inp" placeholder="Nota (opcional)" rows="2" style="resize:none"></textarea>
       <button class="btn-main" style="width:100%;margin-top:8px" onclick="guardarAsistencia()">✓ GUARDAR ASISTENCIA</button>
@@ -1852,7 +1854,8 @@ function toggleCuaForm(){
 function guardarAsistencia(){
   var conceptoId = document.getElementById('cua-concepto-sel').value;
   var trabajador = document.getElementById('cua-trabajador-inp').value.trim();
-  var oficio = document.getElementById('cua-oficio-sel').value;
+  var oficio = document.getElementById('cua-oficio-sel').value.trim();
+  if(!oficio) oficio = 'Otro';
   var jornales = parseFloat(document.getElementById('cua-jornales-inp').value);
   var nota = document.getElementById('cua-nota-inp').value.trim();
   var fecha = document.getElementById('cua-fecha').value;
