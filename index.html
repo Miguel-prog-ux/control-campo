@@ -793,7 +793,7 @@ var DB_KEY='campo_v3';
 // ── imgbb: subida de fotos de evidencia ──
 // Las fotos ya no se guardan como base64 en Firebase (superaban el límite de tamaño).
 // Se suben a imgbb y solo se guarda la URL resultante.
-var IMGBB_API_KEY='a88ecc338350e2a5224bd5f59fa0e4b5';
+var IMGBB_API_KEY='5e44c6fafd3e8c86d46ec23a989454e8';
 function subirAImgbb(b64DataUri,cb){
   if(!b64DataUri){cb(null);return}
   var base64Data=b64DataUri.indexOf(',')>=0?b64DataUri.split(',')[1]:b64DataUri;
