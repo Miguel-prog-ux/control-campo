@@ -1662,7 +1662,16 @@ function corregirAvance(id){
   var c=S.conceptos.find(function(x){return x.id===id});
   var anterior=S.avances[id]||0;
   S.avances[id]=val;
-  if(val===0&&S.dias&&S.dias[id])S.dias[id]=[];
+  if(val===0&&S.dias&&S.dias[id]){
+    S.dias[id]=[];
+  } else if(val>anterior){
+    // Si la corrección SUBE el acumulado, sí cuenta como día trabajado
+    // (igual que un avance normal) — solo bajar a 0 borra los días.
+    if(!S.dias)S.dias={};
+    if(!S.dias[id])S.dias[id]=[];
+    var f=hoy();
+    if(S.dias[id].indexOf(f)<0)S.dias[id].push(f);
+  }
   S.bitacora.push({id:uid(),tipo:'avance',fecha:hoy(),hora:hora(),supervisor:S.supervisor,
     conceptoId:id,concepto:c.nombre,vol:val-anterior,unidad:c.unidad,fotos:[],correccion:true,
     nota:'Corrección: '+anterior.toFixed(1)+'→'+val.toFixed(1)+' '+c.unidad});
