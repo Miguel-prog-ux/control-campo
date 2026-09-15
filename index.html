@@ -1118,10 +1118,7 @@ function mergeRemoteIntoLocal(data){
       changed=true;
     }
   });
-}
-    Object.keys(data.avances).forEach(function(id){
-      if((data.avances[id]||0)>(S.avances[id]||0)){S.avances[id]=data.avances[id];changed=true}
-    });
+
   }
   if(data.bitacora){
     var localIds=S.bitacora.map(function(b){return b.id});
