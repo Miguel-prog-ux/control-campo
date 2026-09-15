@@ -426,6 +426,30 @@ input[type=file]{display:none}
 }
 .cua-add-btn:active{opacity:.8}
 
+.cua-concepto-trigger{
+  width:100%;border:2px solid var(--line);border-radius:var(--r-sm);
+  padding:13px 12px;font-size:15px;font-family:'Barlow',sans-serif;
+  background:#fff;color:var(--ink);cursor:pointer;margin-bottom:12px;
+}
+.cua-concepto-picker{
+  max-height:260px;overflow-y:auto;border:1.5px solid var(--line);
+  border-radius:var(--r-sm);margin-bottom:12px;background:#fff;
+}
+.cua-sec-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:15px;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--line2);
+}
+.cua-sec-arrow{color:var(--muted);font-size:12px;transition:transform .15s}
+.cua-sec-item.open .cua-sec-arrow{transform:rotate(180deg)}
+.cua-sec-conceptos{display:none;background:var(--line2)}
+.cua-sec-conceptos.open{display:block}
+.cua-concepto-item{
+  padding:11px 12px 11px 24px;font-size:14px;color:var(--ink2);
+  cursor:pointer;border-bottom:1px solid rgba(0,0,0,.05);
+}
+.cua-concepto-item:active{background:var(--go-lt)}
+
 /* Form nueva asistencia */
 .cua-form{background:var(--white);margin:0 10px 8px;border-radius:var(--r);border:1.5px solid var(--line);padding:14px;display:none}
 .cua-form.open{display:block}
@@ -715,9 +739,11 @@ input[type=file]{display:none}
     <!-- Formulario nueva asistencia -->
     <div class="cua-form" id="cua-form">
       <div class="cua-form-title">Registrar asistencia</div>
-      <select class="cua-inp" id="cua-concepto-sel">
-        <option value="">— Selecciona concepto —</option>
-      </select>
+      <div class="cua-concepto-trigger" id="cua-concepto-trigger" onclick="toggleConceptoPicker()">— Selecciona concepto —</div>
+<select class="cua-inp" id="cua-concepto-sel" style="display:none">
+  <option value="">— Selecciona concepto —</option>
+</select>
+<div class="cua-concepto-picker" id="cua-concepto-picker" style="display:none"></div>
       <input class="cua-inp" id="cua-trabajador-inp" type="text" placeholder="Nombre del trabajador" autocorrect="off">
       <input class="cua-inp" id="cua-oficio-sel" list="cua-oficio-list" placeholder="Oficio / categoría" autocorrect="off">
       <datalist id="cua-oficio-list">
@@ -1886,9 +1912,49 @@ function poblarConceptosSel(){
   sel.innerHTML = '<option value="">— Selecciona concepto —</option>';
   (S.conceptos||[]).forEach(function(c){
     var opt = document.createElement('option');
-    opt.value = c.id; opt.textContent = c.nombre + ' ('+c.partida+')';
+    opt.value = c.id; opt.textContent = c.nombre + ' (' + c.partida + ')';
     sel.appendChild(opt);
   });
+  renderConceptoPicker();
+}
+function renderConceptoPicker(){
+  var picker = document.getElementById('cua-concepto-picker');
+  if(!picker) return;
+  var secciones = {};
+  (S.conceptos||[]).forEach(function(c){
+    var p = c.partida || 'Sin sección';
+    if(!secciones[p]) secciones[p]=[];
+    secciones[p].push(c);
+  });
+  var html='';
+  Object.keys(secciones).forEach(function(p){
+    html += '<div class="cua-sec-item" onclick="toggleSeccionPicker(this)">'
+          + '<span>'+esc(p)+'</span><span class="cua-sec-arrow">▾</span></div>'
+          + '<div class="cua-sec-conceptos">';
+    secciones[p].forEach(function(c){
+      html += '<div class="cua-concepto-item" onclick="seleccionarConcepto(\''+c.id+'\')">'+esc(c.nombre)+'</div>';
+    });
+    html += '</div>';
+  });
+  picker.innerHTML = html;
+}
+function toggleSeccionPicker(el){
+  var next = el.nextElementSibling;
+  var isOpen = next.classList.contains('open');
+  document.querySelectorAll('.cua-sec-conceptos.open').forEach(function(d){d.classList.remove('open')});
+  document.querySelectorAll('.cua-sec-item.open').forEach(function(d){d.classList.remove('open')});
+  if(!isOpen){ next.classList.add('open'); el.classList.add('open'); }
+}
+function seleccionarConcepto(id){
+  var sel = document.getElementById('cua-concepto-sel');
+  sel.value = id;
+  var c = (S.conceptos||[]).find(function(x){return x.id===id});
+  document.getElementById('cua-concepto-trigger').textContent = c ? (c.nombre+' ('+c.partida+')') : '— Selecciona concepto —';
+  document.getElementById('cua-concepto-picker').style.display='none';
+}
+function toggleConceptoPicker(){
+  var picker = document.getElementById('cua-concepto-picker');
+  picker.style.display = picker.style.display==='none' ? 'block' : 'none';
 }
 
 function toggleCuaForm(){
@@ -1900,6 +1966,8 @@ function toggleCuaForm(){
     document.getElementById('cua-nota-inp').value = '';
     document.getElementById('cua-jornales-inp').value = '1';
     document.getElementById('cua-concepto-sel').value = '';
+document.getElementById('cua-concepto-trigger').textContent = '— Selecciona concepto —';
+document.getElementById('cua-concepto-picker').style.display='none';
     poblarConceptosSel();
     setTimeout(function(){
       document.getElementById('cua-concepto-sel').focus();
