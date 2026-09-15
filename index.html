@@ -1107,6 +1107,18 @@ function mergeRemoteIntoLocal(data){
   if(!data)return false;
   var changed=false;
   if(data.avances){
+  Object.keys(data.avances).forEach(function(id){
+    var remoteTs=(data.avances_ts&&data.avances_ts[id])||0;
+    var localTs=(S.avances_ts&&S.avances_ts[id])||0;
+    var remoteWins = (remoteTs||localTs) ? (remoteTs>localTs) : ((data.avances[id]||0)>(S.avances[id]||0));
+    if(remoteWins){
+      S.avances[id]=data.avances[id];
+      if(!S.avances_ts)S.avances_ts={};
+      if(remoteTs)S.avances_ts[id]=remoteTs;
+      changed=true;
+    }
+  });
+}
     Object.keys(data.avances).forEach(function(id){
       if((data.avances[id]||0)>(S.avances[id]||0)){S.avances[id]=data.avances[id];changed=true}
     });
@@ -1165,7 +1177,7 @@ function pushFirebase(cb){
     });
     var diasC={};
     if(S.dias){Object.keys(S.dias).forEach(function(id){diasC[id]=(S.dias[id]||[]).length})}
-    var data={obra:S.obra,timestamp:new Date().toISOString(),supervisor:S.supervisor,avances:S.avances,dias:diasC,bitacora:bitSinFotos,asistencia:S.asistencia||[]};
+   var data={obra:S.obra,timestamp:new Date().toISOString(),supervisor:S.supervisor,avances:S.avances,avances_ts:S.avances_ts||{},dias:diasC,bitacora:bitSinFotos,asistencia:S.asistencia||[]};
     fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
       .then(function(r){
         if(r.ok){
@@ -1622,6 +1634,8 @@ function guardarAvance(id){
 
   function finalizarGuardado(fotosParaGuardar){
     S.avances[id]=acumA+val;
+    if(!S.avances_ts)S.avances_ts={};
+    S.avances_ts[id]=Date.now();
     if(!S.dias)S.dias={};
     if(!S.dias[id])S.dias[id]=[];
     var f=hoy();
@@ -1662,6 +1676,8 @@ function corregirAvance(id){
   var c=S.conceptos.find(function(x){return x.id===id});
   var anterior=S.avances[id]||0;
   S.avances[id]=val;
+if(!S.avances_ts)S.avances_ts={};
+S.avances_ts[id]=Date.now();
   if(val===0&&S.dias&&S.dias[id]){
     S.dias[id]=[];
   } else if(val>anterior){
