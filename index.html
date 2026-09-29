@@ -1962,10 +1962,11 @@ function toggleCuaForm(){
   var form = document.getElementById('cua-form');
   form.classList.toggle('open', _cuaFormOpen);
   if(_cuaFormOpen){
-    document.getElementById('cua-trabajador-inp').value = '';
-    document.getElementById('cua-nota-inp').value = '';
-    document.getElementById('cua-jornales-inp').value = '1';
-    document.getElementById('cua-concepto-sel').value = '';
+document.getElementById('cua-trabajador-inp').value = '';
+document.getElementById('cua-oficio-sel').value = '';
+document.getElementById('cua-nota-inp').value = '';
+document.getElementById('cua-jornales-inp').value = '1';
+document.getElementById('cua-concepto-sel').value = '';
 document.getElementById('cua-concepto-trigger').textContent = '— Selecciona concepto —';
 document.getElementById('cua-concepto-picker').style.display='none';
     poblarConceptosSel();
