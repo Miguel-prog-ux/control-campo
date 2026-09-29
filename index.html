@@ -741,11 +741,11 @@ input[type=file]{display:none}
         </div>
       </div>
       <!-- Selector de fecha -->
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <label style="font-size:12px;color:var(--muted)">Fecha:</label>
-        <input type="date" id="cua-fecha" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--line2);background:var(--white);color:var(--ink);font-size:14px" onchange="renderCuadrillas()">
-      </div>
-    </div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+  <label style="font-size:12px;color:var(--muted)">Fecha:</label>
+  <input type="date" id="cua-fecha" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--line2);background:var(--white);color:var(--ink);font-size:14px" onchange="renderCuadrillas()">
+  <button id="cua-view-toggle" onclick="toggleCuaVista()" style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--white);color:var(--steel);font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer">Ver todo</button>
+</div>
 
     <!-- Formulario nueva asistencia -->
     <div class="cua-form" id="cua-form">
@@ -2037,7 +2037,7 @@ function fechaIsoADisplay(iso){
 function renderCuadrillas(){
   if(!S.asistencia) S.asistencia = [];
   var fecha = (document.getElementById('cua-fecha')||{}).value || '';
-  var del = S.asistencia.filter(function(a){ return a.fecha === fecha; });
+  var del = _cuaVerTodo ? S.asistencia.slice() : S.asistencia.filter(function(a){ return a.fecha === fecha; });
 
   // KPIs
   var trabajadores = {};
@@ -2107,6 +2107,14 @@ function toggleCuaHistorial(cid){
   } else {
     panel.style.display='none';
   }
+}
+
+var _cuaVerTodo = false;
+function toggleCuaVista(){
+  _cuaVerTodo = !_cuaVerTodo;
+  document.getElementById('cua-view-toggle').textContent = _cuaVerTodo ? 'Ver hoy' : 'Ver todo';
+  document.getElementById('cua-fecha').disabled = _cuaVerTodo;
+  renderCuadrillas();
 }
 function renderCuaHistorial(cid){
   var todos = (S.asistencia||[]).filter(function(a){return a.conceptoId===cid});
