@@ -506,6 +506,16 @@ input[type=file]{display:none}
   color:var(--muted);text-transform:uppercase;letter-spacing:.8px;
   padding:14px 2px 6px;border-bottom:2px solid var(--line2);margin-bottom:6px;
 }
+.cua-hist-link{color:var(--go);font-size:11px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0}
+.cua-hist-panel{background:var(--line2);border-radius:var(--r-sm);margin:0 0 8px 0;padding:8px 10px}
+.cua-hist-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.cua-hist-row{display:flex;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06);align-items:center}
+.cua-hist-date{color:var(--muted);flex-shrink:0;width:70px}
+.cua-hist-name{flex:1;font-weight:600;color:var(--ink)}
+.cua-hist-oficio{color:var(--steel);flex-shrink:0}
+.cua-hist-jorn{color:var(--go);font-weight:700;flex-shrink:0}
+.cua-hist-empty{font-size:12px;color:var(--muted);padding:4px 0}
+
 .cua-entry{
   background:var(--white);border-radius:var(--r);border:1.5px solid var(--line2);
   margin-bottom:6px;box-shadow:var(--sh);overflow:hidden;
@@ -1245,7 +1255,7 @@ function renderFiltros(){
   partidas.forEach(function(p){
     var d=document.createElement('div');
     d.className='ftab'+(S.filtro===p?' active':'');
-    d.textContent=p==='Todos'?'Todos':p.split(' ')[0];
+    d.textContent=p==='Todos'?'Todos':p;
     d.onclick=function(){filtrar(p,d)};
     el.appendChild(d);
   });
@@ -2058,7 +2068,9 @@ function renderCuadrillas(){
   var html = '';
   Object.keys(byConcepto).forEach(function(cid){
     var g = byConcepto[cid];
-    html += '<div class="cua-concept-sep">'+esc(g.partida ? g.partida+' — ' : '')+esc(g.nombre)+'</div>';
+    html += '<div class="cua-concept-sep">'+esc(g.partida ? g.partida+' — ' : '')+esc(g.nombre)
+      + ' <span class="cua-hist-link" onclick="toggleCuaHistorial(\''+cid+'\')">Ver historial ▾</span></div>'
+      + '<div class="cua-hist-panel" id="cua-hist-'+cid+'" style="display:none"></div>';
     g.items.forEach(function(a){
       html += '<div class="cua-entry" id="cua-entry-'+a.id+'">'
         +'<div class="cua-entry-row" onclick="toggleCuaDetail(&apos;'+a.id+'&apos;)">'
@@ -2084,6 +2096,31 @@ function renderCuadrillas(){
     });
   });
   list.innerHTML = html;
+}
+function toggleCuaHistorial(cid){
+  var panel = document.getElementById('cua-hist-'+cid);
+  if(!panel) return;
+  if(panel.style.display==='none'){
+    panel.innerHTML = renderCuaHistorial(cid);
+    panel.style.display='block';
+  } else {
+    panel.style.display='none';
+  }
+}
+function renderCuaHistorial(cid){
+  var todos = (S.asistencia||[]).filter(function(a){return a.conceptoId===cid});
+  if(!todos.length) return '<div class="cua-hist-empty">Sin registros históricos</div>';
+  todos.sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||'') || (a.hora||'').localeCompare(b.hora||''); });
+  var html='<div class="cua-hist-title">Historial completo del concepto</div>';
+  todos.forEach(function(a){
+    html += '<div class="cua-hist-row">'
+          + '<span class="cua-hist-date">'+esc(a.fechaDisplay||a.fecha)+'</span>'
+          + '<span class="cua-hist-name">'+esc(a.trabajador)+'</span>'
+          + '<span class="cua-hist-oficio">'+esc(a.oficio)+'</span>'
+          + '<span class="cua-hist-jorn">'+a.jornales.toFixed(1)+'j</span>'
+          + '</div>';
+  });
+  return html;
 }
 
 function renderResumenCuadrillas(del){
