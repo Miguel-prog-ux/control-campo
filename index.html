@@ -1256,7 +1256,7 @@ function renderFiltros(){
   partidas.forEach(function(p){
     var d=document.createElement('div');
     d.className='ftab'+(S.filtro===p?' active':'');
-    d.textContent=p==='Todos'?'Todos':p;
+    d.textContent=p==='Todos'?'Todos':p.replace(' - ',' ').split(' ').slice(0,3).join(' ');
     d.onclick=function(){filtrar(p,d)};
     el.appendChild(d);
   });
