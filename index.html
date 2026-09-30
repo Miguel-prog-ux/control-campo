@@ -609,7 +609,8 @@ input[type=file]{display:none}
       <div class="setup-lbl">Tu empresa (opcional — se muestra en vez del logo del Kit)</div>
       <input class="setup-inp" id="inp-empresa" type="text" placeholder="Ej: Constructora Méndez S.A." autocorrect="off">
       <div class="setup-lbl" style="margin-top:4px">Logo de tu empresa (opcional)</div>
-      <input class="setup-inp last" id="inp-logo" type="file" accept="image/*" style="padding:10px">
+      <input type="file" id="inp-logo" accept="image/*" style="display:none">
+<button type="button" class="setup-inp last" id="inp-logo-btn" onclick="document.getElementById('inp-logo').click()" style="text-align:left;cursor:pointer;background:transparent;color:var(--muted);border:1.5px dashed var(--line)">📷 Toca para elegir logo</button>
     </div>
     <div class="setup-section">
       <div class="setup-lbl">Tu nombre</div>
@@ -2195,6 +2196,7 @@ document.getElementById('inp-logo').addEventListener('change',function(e){
   var reader=new FileReader();
   reader.onload=function(){
     S.logoDataUrl=reader.result;
+document.getElementById('inp-logo-btn').textContent = '✓ Logo seleccionado: ' + file.name;
     try{save();}catch(err){toast('El logo es muy pesado, prueba con una imagen más ligera');}
     aplicarMarcaApp();
   };
