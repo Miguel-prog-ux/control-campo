@@ -238,6 +238,13 @@ body{
   -webkit-appearance:none;
 }
 .foto-btn:active{border-color:var(--acc);background:var(--acc-soft)}
+.etapa-row{display:flex;align-items:center;gap:6px}
+.etapa-lbl{font-family:'Barlow',sans-serif;font-size:13px;color:var(--tx2);font-weight:500;margin-right:2px;white-space:nowrap}
+.etapa-chip{flex:1;padding:11px 4px;border:2px dashed var(--line);border-radius:var(--r-sm);background:var(--input);color:var(--tx2);font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;cursor:pointer;-webkit-appearance:none}
+.etapa-chip:active{border-color:var(--acc);background:var(--acc-soft)}
+.etapa-chip.sug{border-style:solid;border-color:var(--acc);color:var(--acc)}
+.foto-wrap{position:relative;display:inline-block;flex-shrink:0}
+.foto-wrap .foto-et{position:absolute;left:3px;bottom:3px;background:rgba(15,23,42,.82);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;letter-spacing:.03em;pointer-events:none}
 .foto-preview{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .foto-thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;border:2px solid var(--line);cursor:pointer;flex-shrink:0}
 .foto-thumb:active{opacity:.7}
@@ -891,7 +898,10 @@ function subirFotosAImgbb(fotos,cb){
     subirAImgbb(b64,function(url){
       urls[i]=url;
       if(!url)huboError=true;
-      if(--pending===0)cb(urls.filter(function(u){return u}),huboError);
+      if(--pending===0){
+        var idx=[];urls.forEach(function(u,k){if(u)idx.push(k)});
+        cb(urls.filter(function(u){return u}),huboError,idx);
+      }
     });
   });
 }
@@ -1387,9 +1397,10 @@ function crearCard(c){
         +'<textarea class="nota-inp" id="nota-'+c.id+'" placeholder="Observaciones del día (opcional)…"></textarea>'
       +'</div>'
       +'<div class="foto-btn-row">'
-        +'<div class="foto-btn" onclick="pedirFoto(\''+c.id+'\')">'
-          +'<span style="font-size:22px">📷</span>'
-          +'<span>Foto de evidencia</span>'
+        +'<div class="etapa-row"><span class="etapa-lbl">📷 Foto</span>'
+          +'<button type="button" class="etapa-chip'+(acum<=0?' sug':'')+'" onclick="pedirFoto(\''+c.id+'\',\'antes\')">Antes</button>'
+          +'<button type="button" class="etapa-chip'+(acum>0?' sug':'')+'" onclick="pedirFoto(\''+c.id+'\',\'durante\')">Durante</button>'
+          +'<button type="button" class="etapa-chip" onclick="pedirFoto(\''+c.id+'\',\'despues\')">Después</button>'
         +'</div>'
         +'<div class="foto-preview" id="previews-'+c.id+'"></div>'
       +'</div>'
@@ -1476,8 +1487,9 @@ function toggleCorr(id){
 // ═══════════════════════════════════════════════════
 // FOTOS AVANCE
 // ═══════════════════════════════════════════════════
-function pedirFoto(id){
-  _activoCardId=id;
+var _etapaActual='durante',_etapaDe={};
+function pedirFoto(id,etapa){
+  _activoCardId=id;_etapaActual=etapa||'durante';
   var inp=document.getElementById('foto-input-gal');
   inp.value='';inp.click();
 }
@@ -1543,6 +1555,7 @@ function onFotoFromInput(ev,esBit){
         _bitFotoBuffer.push(b64);
         if(--pending===0)renderBitFotos();
       } else {
+        _etapaDe[b64]=_etapaActual;
         _fotoBuffer.push(b64);
         if(--pending===0){
           if(_activoCardId)_fotoStore[_activoCardId]=_fotoBuffer.slice();
@@ -1586,6 +1599,7 @@ function capturarFoto(){
       _bitFotoBuffer.push(compressed);
       renderBitFotos();
     } else {
+      _etapaDe[compressed]=_etapaActual;
       _fotoBuffer.push(compressed);
       if(_activoCardId)_fotoStore[_activoCardId]=_fotoBuffer.slice();
       renderPreviews(_activoCardId,_fotoBuffer);
@@ -1673,10 +1687,13 @@ function renderPreviews(id,fotos){
   if(!el)return;
   el.innerHTML='';
   fotos.forEach(function(src){
+    var w=document.createElement('span');w.className='foto-wrap';
     var img=document.createElement('img');
     img.className='foto-thumb';img.src=src;
     img.onclick=function(){abrirLightbox(src)};
-    el.appendChild(img);
+    var et=document.createElement('span');et.className='foto-et';
+    et.textContent={antes:'Antes',durante:'Durante',despues:'Después'}[_etapaDe[src]||'durante'];
+    w.appendChild(img);w.appendChild(et);el.appendChild(w);
   });
 }
 
@@ -1701,7 +1718,7 @@ function guardarAvance(id){
   // Usar _fotoStore[id] como fuente primaria de fotos (más confiable que _fotoBuffer)
   var fotosEntry=(_fotoStore[id]&&_fotoStore[id].length>0)?_fotoStore[id].slice():_fotoBuffer.slice();
 
-  function finalizarGuardado(fotosParaGuardar){
+  function finalizarGuardado(fotosParaGuardar,etapasParaGuardar){
     S.avances[id]=acumA+val;
     if(!S.avances_ts)S.avances_ts={};
     S.avances_ts[id]=Date.now();
@@ -1711,6 +1728,7 @@ function guardarAvance(id){
     if(S.dias[id].indexOf(f)<0)S.dias[id].push(f);
     var entry={id:uid(),tipo:'avance',fecha:f,hora:hora(),supervisor:S.supervisor,
       conceptoId:id,concepto:c.nombre,vol:val,unidad:c.unidad,fotos:fotosParaGuardar,correccion:false};
+    if(etapasParaGuardar&&etapasParaGuardar.length===fotosParaGuardar.length)entry.etapas=etapasParaGuardar;
     if(nota)entry.nota=nota;
     S.bitacora.push(entry);
     // Personal que trabajó en esta actividad (opcional): su jornal del día se reparte entre sus actividades
@@ -1733,8 +1751,11 @@ function guardarAvance(id){
 
   if(fotosEntry.length){
     toast('Subiendo '+fotosEntry.length+' foto(s)…');
-    subirFotosAImgbb(fotosEntry,function(urls,huboError){
-      finalizarGuardado(urls.length?urls:fotosEntry);
+    var etAll=fotosEntry.map(function(f){return _etapaDe[f]||'durante'});
+    subirFotosAImgbb(fotosEntry,function(urls,huboError,idx){
+      if(urls.length)finalizarGuardado(urls,idx.map(function(k){return etAll[k]}));
+      else finalizarGuardado(fotosEntry,etAll);
+      fotosEntry.forEach(function(f){delete _etapaDe[f]});
       if(huboError)toast('⚠ Alguna foto no se pudo subir a imgbb');
     });
   } else {
