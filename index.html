@@ -2156,6 +2156,7 @@ function mezclarPersonal(remoto){
   if(!S.personal)S.personal=[];
   toArr(remoto).forEach(function(r){
     if(!r||!r.id||!r.nombre)return;
+    if(S.borrados&&S.borrados[r.id])return;
     var l=personaPorId(r.id);
     if(l){
       if((r.ts||0)>(l.ts||0)){l.nombre=r.nombre;l.puesto=r.puesto||'Otro';l.baja=!!r.baja;l.ts=r.ts;changed=true}
@@ -2212,7 +2213,9 @@ function mezclarCuadrillasYAsistencia(data){
     var n0=S.asistencia.length,c0=(S.cuadrillas||[]).length;
     S.asistencia=S.asistencia.filter(function(a){return !S.borrados[a.id]});
     S.cuadrillas=(S.cuadrillas||[]).filter(function(c){return !S.borrados[c.id]});
-    if(S.asistencia.length!==n0||S.cuadrillas.length!==c0)changed=true;
+    var p0=(S.personal||[]).length;
+    S.personal=(S.personal||[]).filter(function(x){return !S.borrados[x.id]});
+    if(S.asistencia.length!==n0||S.cuadrillas.length!==c0||S.personal.length!==p0)changed=true;
   }
   if(migrarAsistencia())changed=true;
   return changed;
@@ -2442,14 +2445,20 @@ function toggleGestion(){
   if(_gestionAbierta)renderGestion();
 }
 function renderGestion(){
-  var h='';
-  (S.personal||[]).slice().sort(porNombre).forEach(function(p){
-    h+='<div class="gp-row'+(p.baja?' baja':'')+'">'
+  var h='',bajas='';
+  function fila(p){
+    return '<div class="gp-row'+(p.baja?' baja':'')+'">'
       +'<input class="cua-inp" id="gp-n-'+p.id+'" value="'+escAttr(p.nombre)+'" autocapitalize="words">'
       +'<input class="cua-inp" id="gp-o-'+p.id+'" value="'+escAttr(p.puesto||'')+'" list="cua-oficio-list">'
       +'<button class="btn-chip" onclick="guardarPersona(\''+p.id+'\')">Guardar</button>'
-      +'<button class="btn-chip" onclick="bajaPersona(\''+p.id+'\')">'+(p.baja?'Dar de alta':'Dar de baja')+'</button></div>';
-  });
+      +'<button class="btn-chip" onclick="bajaPersona(\''+p.id+'\')">'+(p.baja?'Dar de alta':'Dar de baja')+'</button>'
+      +(p.baja?'<button class="btn-chip" style="color:#F87171" onclick="eliminarPersona(\''+p.id+'\')">Eliminar</button>':'')
+      +'</div>';
+  }
+  var lista=(S.personal||[]).slice().sort(porNombre);
+  lista.filter(function(p){return !p.baja}).forEach(function(p){h+=fila(p)});
+  lista.filter(function(p){return p.baja}).forEach(function(p){bajas+=fila(p)});
+  if(bajas)h+='<div class="quien-title" style="margin:14px 0 8px">Dados de baja <small>(no aparecen en tu lista de cada día)</small></div>'+bajas;
   document.getElementById('cua-gestion').innerHTML=h||'<div class="cua-empty">Sin personal.</div>';
 }
 function guardarPersona(pid){
@@ -2470,9 +2479,28 @@ function guardarPersona(pid){
 function bajaPersona(pid){
   var p=personaPorId(pid);
   if(!p)return;
+  if(!p.baja&&!confirm('¿Dar de baja a '+p.nombre+'?\n\nYa no aparecerá en tu lista diaria. Su historial y su nómina se conservan, y puedes darlo de alta de nuevo cuando quieras.'))return;
   p.baja=!p.baja;p.ts=Date.now();
   if(p.baja)delete _sel[pid];
-  guardarCambiosAsistencia();renderCuadrillas();
+  guardarCambiosAsistencia();renderCuadrillas();renderGestion();
+  toast(p.baja?p.nombre+' dado de baja':p.nombre+' dado de alta');
+}
+// Borra a la persona por completo. Solo si nunca tuvo asistencia (si no, se descuadraría la nómina).
+function eliminarPersona(pid){
+  var p=personaPorId(pid);
+  if(!p)return;
+  var tiene=(S.asistencia||[]).some(function(a){return a.pid===pid});
+  if(tiene){toast(p.nombre+' tiene asistencia registrada: se queda de baja para conservar la nómina');return}
+  if(!confirm('¿Eliminar a '+p.nombre+' definitivamente?\n\nNo tiene asistencia registrada, así que no afecta ninguna nómina.'))return;
+  S.personal=(S.personal||[]).filter(function(x){return x.id!==pid});
+  (S.cuadrillas||[]).forEach(function(c){
+    var m=(c.miembros||[]).filter(function(x){return x!==pid});
+    if(m.length!==(c.miembros||[]).length){c.miembros=m;c.ts=Date.now()}
+  });
+  delete _sel[pid];
+  marcarBorrado(pid);
+  guardarCambiosAsistencia();renderCuadrillas();renderGestion();
+  toast('Eliminado');
 }
 
 // ── Asignar actividad ──
