@@ -1176,7 +1176,7 @@ function intentar(base,vars,i){
       // Leer config (semana)
       fetch(base+'/obras/'+vars[i]+'/config.json')
         .then(function(r){return r.json()})
-        .then(function(cfg){if(cfg&&cfg.semana)mostrarSemana(cfg.semana)})
+        .then(function(cfg){if(cfg&&cfg.semana&&!data.semana)mostrarSemana(cfg.semana)})
         .catch(function(){});
       // Sync bidireccional
       leerAvancesFirebase(base);
