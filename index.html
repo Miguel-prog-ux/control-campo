@@ -1172,6 +1172,7 @@ function intentar(base,vars,i){
       if(!data||!data.conceptos){intentar(base,vars,i+1);return}
       if(!Object.keys(data.conceptos).some(function(k){return data.conceptos[k]&&data.conceptos[k].contratado>0})){intentar(base,vars,i+1);return}
       procesarCatalogo(data);
+      if(data.semana)mostrarSemana(data.semana);
       // Leer config (semana)
       fetch(base+'/obras/'+vars[i]+'/config.json')
         .then(function(r){return r.json()})
