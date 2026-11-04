@@ -466,6 +466,12 @@ input[type=file]{display:none}
 .blk{background:var(--card);border:1.5px solid var(--line2);border-radius:var(--r);padding:12px;margin-bottom:10px;box-shadow:var(--sh)}
 .blk-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
 .blk-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.8px;color:var(--tx2);text-transform:uppercase}
+.blk-fold .blk-title{cursor:pointer;display:flex;align-items:center;gap:6px;flex:1;-webkit-tap-highlight-color:transparent}
+.blk-fold .chev{font-style:normal;display:inline-block;transition:transform .15s;color:var(--muted);font-size:12px}
+.blk-fold.plegado .chev{transform:rotate(-90deg)}
+.blk-fold.plegado .blk-body{display:none}
+.blk-fold.plegado .blk-head{margin-bottom:0}
+.blk-res{font-style:normal;font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0}
 .blk-sub{font-size:12px;color:var(--muted);margin:-4px 0 8px;line-height:1.4}
 .link{background:none;border:none;color:var(--acc);font-size:12px;font-weight:700;cursor:pointer;padding:4px 2px;font-family:'Barlow',sans-serif}
 .btn-ghost{
@@ -740,11 +746,12 @@ input[type=file]{display:none}
 
       <!-- Vista del día -->
       <div id="cua-dia">
-        <div class="blk">
+        <div class="blk blk-fold" id="blk-quien">
           <div class="blk-head">
-            <span class="blk-title">Quién vino</span>
+            <span class="blk-title" onclick="plegarBlk('quien')"><i class="chev">▾</i>Quién vino <em class="blk-res" id="res-quien"></em></span>
             <button class="link" onclick="marcarTodos()">Marcar a todos</button>
           </div>
+          <div class="blk-body">
           <div class="blk-sub">Cada persona cuenta 1 jornal por día, sin importar en cuántas actividades trabaje.</div>
           <div id="cua-sinmarcar" class="chips"></div>
           <div id="cua-presentes"></div>
@@ -762,6 +769,7 @@ input[type=file]{display:none}
           </div>
           <button class="link" id="btn-gestion" style="margin-top:8px" onclick="toggleGestion()">Editar personal</button>
           <div id="cua-gestion" style="display:none"></div>
+          </div>
         </div>
 
         <button class="btn-main btn-block" id="btn-asignar" onclick="abrirAsignar()">＋ Asignar actividad</button>
@@ -783,9 +791,9 @@ input[type=file]{display:none}
           <button class="link" style="margin-top:6px" onclick="guardarComoCuadrilla()">Guardar esta selección como cuadrilla</button>
         </div>
 
-        <div class="blk">
-          <div class="blk-head"><span class="blk-title">Actividades del día</span></div>
-          <div id="cua-list"></div>
+        <div class="blk blk-fold" id="blk-acts">
+          <div class="blk-head"><span class="blk-title" onclick="plegarBlk('acts')"><i class="chev">▾</i>Actividades del día <em class="blk-res" id="res-acts"></em></span></div>
+          <div class="blk-body"><div id="cua-list"></div></div>
         </div>
         <div id="cua-resumen-wrap"></div>
       </div>
@@ -1179,7 +1187,7 @@ function procesarCatalogo(cat){
   var c=[];
   Object.keys(cat.conceptos).sort().forEach(function(id){
     var x=cat.conceptos[id];
-    if(x&&x.nombre)c.push({id:id,partida:x.partida||'General',nombre:x.nombre,unidad:x.unidad||'u',contratado:x.contratado||0});
+    if(x&&x.nombre)c.push({id:id,partida:x.partida||'General',nombre:x.nombre,unidad:x.unidad||'u',contratado:x.contratado||0,presupuesto:Number(x.presupuesto)||0});
   });
   if(c.length){S.conceptos=c;save();toast(c.length+' conceptos cargados desde Excel')}
   renderTodo();
@@ -1441,13 +1449,16 @@ function actualizarKPIs(){
     ['k-avance','k-done','k-prog','k-pend'].forEach(function(id){document.getElementById(id).textContent=id==='k-avance'?'0%':'0'});
     return;
   }
-  var total=0,done=0,prog=0,pend=0;
+  var total=0,done=0,prog=0,pend=0,sumPres=0,totPes=0;
+  S.conceptos.forEach(function(c){sumPres+=Number(c.presupuesto)||0});
   S.conceptos.forEach(function(c){
     var p=(S.avances[c.id]||0)/(c.contratado||1);
+    var w=sumPres>0?(Number(c.presupuesto)||0)/sumPres:1/S.conceptos.length;
+    totPes+=w*Math.min(p,1);
     total+=Math.min(p,1);
     if(p>=1)done++;else if(p>0)prog++;else pend++;
   });
-  document.getElementById('k-avance').textContent=Math.round(total/S.conceptos.length*100)+'%';
+  document.getElementById('k-avance').textContent=Math.round(totPes*100)+'%';
   document.getElementById('k-done').textContent=done;
   document.getElementById('k-prog').textContent=prog;
   document.getElementById('k-pend').textContent=pend;
@@ -2354,6 +2365,28 @@ function renderCuadrillas(){
   renderResumenOficio(del);
   refrescarQuien();
   if(_gestionAbierta)renderGestion();
+  resumenesCua();
+}
+
+// ── Bloques plegables (Quién vino / Actividades) ──
+var _plegado={};
+try{_plegado=JSON.parse(localStorage.getItem('kit_plegado')||'{}')||{}}catch(e){_plegado={}}
+function plegarBlk(k){
+  _plegado[k]=!_plegado[k];
+  try{localStorage.setItem('kit_plegado',JSON.stringify(_plegado))}catch(e){}
+  resumenesCua();
+}
+function resumenesCua(){
+  var activos=(S.personal||[]).filter(function(p){return !p.baja}).length;
+  var pres=document.getElementById('ck-trab'),act=document.getElementById('ck-conceptos');
+  var np=pres?pres.textContent:'0',na=act?act.textContent:'0';
+  [['quien','blk-quien','res-quien','· '+np+' de '+activos+' presentes'],
+   ['acts','blk-acts','res-acts','· '+na+(na==='1'?' actividad':' actividades')]].forEach(function(r){
+    var b=document.getElementById(r[1]),e=document.getElementById(r[2]);
+    if(!b)return;
+    b.classList.toggle('plegado',!!_plegado[r[0]]);
+    if(e)e.textContent=_plegado[r[0]]?r[3]:'';
+  });
 }
 
 // ── Quién vino ──
