@@ -472,6 +472,37 @@ input[type=file]{display:none}
 .blk-fold.plegado .blk-body{display:none}
 .blk-fold.plegado .blk-head{margin-bottom:0}
 .blk-res{font-style:normal;font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0}
+.qfilt{display:none;gap:6px;margin:0 0 8px}
+.qfilt.on{display:flex}
+.qfilt input,.qfilt select{background:var(--input);border:1.5px solid var(--line);border-radius:8px;color:var(--tx);font-family:'Barlow',sans-serif;font-size:14px;padding:8px 10px;min-width:0}
+.qfilt input{flex:1}.qfilt select{max-width:44%}
+.qacts{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 8px}
+.qsec{display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--tx2)}
+.qsec small{font-family:'Barlow',sans-serif;text-transform:none;letter-spacing:0;font-weight:600;color:var(--muted)}
+.pc{border:1.5px solid var(--line2);background:var(--card2);border-radius:var(--r-sm);margin-top:6px;overflow:hidden}
+.pc-row{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pc .pres-ic{width:28px;height:28px;font-size:14px;border-radius:7px}
+.pc-b{flex:1;min-width:0}
+.pc-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15}
+.pc-meta{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-meta.warn{color:var(--prog)}
+.pc .jchip{min-width:38px;padding:4px 8px;font-size:13px}
+.pc .chev{font-style:normal;color:var(--muted);font-size:12px;transition:transform .15s}
+.pc.open .chev{transform:rotate(180deg)}
+.pc-det{display:none;padding:8px 10px 10px;border-top:1px dashed var(--line2);align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pc.open .pc-det{display:flex}
+.ag{border:1.5px solid var(--line2);background:var(--card2);border-radius:var(--r-sm);margin-bottom:6px;overflow:hidden}
+.ag-head{display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ag-head .chev{font-style:normal;color:var(--muted);font-size:12px;transition:transform .15s}
+.ag.cerrado .chev{transform:rotate(-90deg)}
+.ag-t{flex:1;min-width:0;font-weight:700;font-size:14px;color:var(--tx);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ag-t small{color:var(--muted);font-weight:600}
+.ag-n{font-family:'Roboto Mono',monospace;font-size:11.5px;color:var(--acc);font-weight:700;white-space:nowrap;text-align:right}
+.ag-body{padding:0 8px 8px}
+.ag.cerrado .ag-body{display:none}
+.ag.gen .ag-t{color:var(--prog)}
+.ag-body .act-row{margin-bottom:5px;padding:7px 9px}
+.ag-tools{display:flex;justify-content:space-between;align-items:center;margin:0 2px 6px}
 .blk-sub{font-size:12px;color:var(--muted);margin:-4px 0 8px;line-height:1.4}
 .link{background:none;border:none;color:var(--acc);font-size:12px;font-weight:700;cursor:pointer;padding:4px 2px;font-family:'Barlow',sans-serif}
 .btn-ghost{
@@ -753,7 +784,15 @@ input[type=file]{display:none}
           </div>
           <div class="blk-body">
           <div class="blk-sub">Cada persona cuenta 1 jornal por día, sin importar en cuántas actividades trabaje.</div>
+          <div class="qfilt" id="qfilt">
+            <input id="q-buscar" type="search" placeholder="Buscar trabajador…" autocomplete="off" autocorrect="off" oninput="_qBuscar=this.value;renderCuadrillas()">
+            <select id="q-oficio" onchange="_qOficio=this.value;renderCuadrillas()"><option value="">Todos los oficios</option></select>
+          </div>
+          <div class="qacts"><button class="link" id="btn-ayer" onclick="marcarDeAyer()" style="display:none"></button></div>
+          <div class="qsec" id="qsec-aus" style="display:none"><span>Faltan por marcar <small id="qn-aus"></small></span></div>
           <div id="cua-sinmarcar" class="chips"></div>
+          <div id="qmas" style="display:none"><button class="link" id="btn-masaus" onclick="_verTodosAus=!_verTodosAus;renderCuadrillas()"></button></div>
+          <div class="qsec" id="qsec-pres" style="display:none;cursor:pointer" onclick="togPresSec()"><span><i class="chev" id="chev-pres" style="font-style:normal;display:inline-block;transition:transform .15s;color:var(--muted);margin-right:4px">▾</i>Presentes <small id="qn-pres"></small></span></div>
           <div id="cua-presentes"></div>
           <button class="btn-ghost" onclick="toggleNuevoTrab()">＋ Nuevo trabajador</button>
           <div class="nuevo" id="cua-nuevo">
@@ -785,7 +824,8 @@ input[type=file]{display:none}
             <input class="cua-inp" id="asig-buscar" type="search" placeholder="Buscar concepto…" oninput="renderPicker()" autocorrect="off" style="margin:6px 0 0">
             <div class="picker" id="asig-lista"></div>
           </div>
-          <div class="asig-step">2 · ¿Quiénes?</div>
+          <div class="asig-step">2 · ¿Quiénes? <small id="asig-nsel" style="font-weight:600;color:var(--muted);text-transform:none"></small></div>
+          <input class="cua-inp" id="asig-qbuscar" type="search" placeholder="Buscar persona…" autocomplete="off" autocorrect="off" oninput="_aBuscar=this.value;refrescarQuien()" style="margin:0 0 8px">
           <div class="quien-box" data-ctx="cua"></div>
           <div class="asig-acts"><button class="btn-main" onclick="guardarAsignacion()">Asignar</button></div>
           <button class="link" style="margin-top:6px" onclick="guardarComoCuadrilla()">Guardar esta selección como cuadrilla</button>
@@ -2255,6 +2295,13 @@ function seleccionActual(){
   return Object.keys(_sel).filter(function(pid){var p=personaPorId(pid);return _sel[pid]&&p&&!p.baja});
 }
 function limpiarSeleccion(){_sel={}}
+function toggleTodosPresentes(){
+  var f=fechaSel();
+  var pres=(S.personal||[]).filter(function(p){return !p.baja&&regsDia(p.id,f).length});
+  var todos=pres.length>0&&pres.every(function(p){return _sel[p.id]});
+  pres.forEach(function(p){if(todos)delete _sel[p.id];else _sel[p.id]=true});
+  refrescarQuien();
+}
 function toggleSel(pid){if(_sel[pid])delete _sel[pid];else _sel[pid]=true;refrescarQuien()}
 function miembrosActivos(c){
   return toArr(c.miembros).filter(function(pid){var p=personaPorId(pid);return p&&!p.baja});
@@ -2269,7 +2316,7 @@ function toggleCrew(cid){
 }
 function toggleEditCrews(){_editCrews=!_editCrews;refrescarQuien()}
 
-function quienHTML(fecha){
+function quienHTML(fecha,esAsignar){
   var activos=(S.personal||[]).filter(function(p){return !p.baja});
   if(!activos.length){
     return '<div class="quien-vacio">Aún no hay personal dado de alta. Agrégalo en la pestaña <button class="link" onclick="switchToScreen(\'cuadrillas\')">Cuadrillas</button>.</div>';
@@ -2287,11 +2334,21 @@ function quienHTML(fecha){
   var pres=[],aus=[];
   activos.forEach(function(p){(regsDia(p.id,fecha).length?pres:aus).push(p)});
   pres.sort(porNombre);aus.sort(porNombre);
+  if(esAsignar&&_aBuscar){
+    var qq=norm2(_aBuscar);
+    pres=pres.filter(function(p){return norm2(p.nombre+' '+(p.puesto||'')).indexOf(qq)>=0});
+    aus=aus.filter(function(p){return norm2(p.nombre+' '+(p.puesto||'')).indexOf(qq)>=0});
+  }
   function chip(p,presente){
     return '<button class="pchip'+(_sel[p.id]?' on':'')+(presente?'':' dim')+'" onclick="toggleSel(\''+p.id+'\')">'
       +esc(p.nombre)+' <small>'+esc(p.puesto||'Otro')+'</small></button>';
   }
+  if(esAsignar&&pres.length>1&&!_aBuscar){
+    var todosP=pres.every(function(p){return _sel[p.id]});
+    h+='<div class="chips"><button class="pchip crew'+(todosP?' on':'')+'" onclick="toggleTodosPresentes()">✓ Todos los presentes ('+pres.length+')</button></div>';
+  }
   h+='<div class="chips">'+pres.map(function(p){return chip(p,true)}).join('')+aus.map(function(p){return chip(p,false)}).join('')+'</div>';
+  if(esAsignar&&_aBuscar&&!pres.length&&!aus.length)h+='<div class="quien-vacio">Nadie coincide con la búsqueda.</div>';
   if(aus.length)h+='<div class="quien-vacio" style="margin-top:6px">Los atenuados aún no están marcados como presentes: se marcan solos al guardar.</div>';
   return h;
 }
@@ -2300,10 +2357,14 @@ function refrescarQuien(){
   document.querySelectorAll('.quien-box').forEach(function(el){
     var panel=el.closest('.inp-panel');
     if(panel&&!panel.classList.contains('open'))return;   // solo lo que se está viendo
-    var ctx=el.getAttribute('data-ctx')==='cua'?fechaSel():fechaHoyIso();
-    if(!cache[ctx])cache[ctx]=quienHTML(ctx);
-    el.innerHTML=cache[ctx];
+    var esCua=el.getAttribute('data-ctx')==='cua';
+    var ctx=esCua?fechaSel():fechaHoyIso();
+    var ck=ctx+(esCua?'|a':'|b');
+    if(!cache[ck])cache[ck]=quienHTML(ctx,esCua);
+    el.innerHTML=cache[ck];
   });
+  var ns=document.getElementById('asig-nsel');
+  if(ns){var n=seleccionActual().length;ns.textContent=n?'· '+n+(n===1?' seleccionada':' seleccionadas'):''}
 }
 function guardarComoCuadrilla(){
   var sel=seleccionActual();
@@ -2391,32 +2452,109 @@ function resumenesCua(){
 }
 
 // ── Quién vino ──
+var _qBuscar='',_qOficio='',_verTodosAus=false,_pAbierto={},_aBuscar='';
+var LIM_AUS=12;
+function fechaAnteriorConAsistencia(fecha){
+  var f='';
+  (S.asistencia||[]).forEach(function(a){if(a.fecha&&a.fecha<fecha&&a.fecha>f)f=a.fecha});
+  return f;
+}
+function fmtFechaCorta(iso){var p=(iso||'').split('-');return p.length===3?(p[2]+'/'+p[1]):iso}
+function coincideBusqueda(p){
+  if(_qOficio&&(p.puesto||'Otro')!==_qOficio)return false;
+  if(_qBuscar&&norm2(p.nombre+' '+(p.puesto||'')).indexOf(norm2(_qBuscar))<0)return false;
+  return true;
+}
 function renderPersonalDia(fecha){
   var activos=(S.personal||[]).filter(function(p){return !p.baja}).sort(porNombre);
-  var sin=[],html='';
-  activos.forEach(function(p){
-    var regs=regsDia(p.id,fecha);
-    if(!regs.length){sin.push(p);return}
-    var pm=paramDia(regs);
-    var reales=regs.filter(function(a){return a.conceptoId!==GENERAL_ID}).length;
-    html+='<div class="pres"><div class="pres-top"><div class="pres-ic">✓</div>'
-      +'<div class="pres-body"><div class="pres-name">'+esc(p.nombre)+'</div>'
-      +'<div class="pres-meta'+(reales?'':' warn')+'">'+esc(p.puesto||'Otro')+' · '
-      +(reales?(reales+(reales===1?' actividad':' actividades')):'sin actividad asignada')+'</div>'
-      +'<button class="btn-asig-uno" onclick="asignarA(\''+p.id+'\')">'+(reales?'＋ Otra actividad':'＋ Asignar actividad')+'</button></div>'
-      +'<button class="jchip'+(pm.jd<1?' medio':'')+'" onclick="alternarJornada(\''+p.id+'\')">'
-      +(pm.jd===0.5?'½':String(pm.jd))+'<small>jornal</small></button></div>'
-      +'<div class="pres-bot"><div class="he"><span class="he-lbl">Horas extra</span><div class="stepper">'
-      +'<button onclick="cambiarHE(\''+p.id+'\',-1)">−</button><span>'+pm.hd+' h</span>'
-      +'<button onclick="cambiarHE(\''+p.id+'\',1)">+</button></div></div>'
-      +'<button class="btn-quitar" onclick="quitarPresente(\''+p.id+'\')">Quitar del día</button></div></div>';
-  });
-  document.getElementById('cua-sinmarcar').innerHTML=sin.map(function(p){
+  // Filtros: solo estorban si la lista es corta
+  var qf=document.getElementById('qfilt');
+  qf.classList.toggle('on',activos.length>8);
+  var sel=document.getElementById('q-oficio');
+  var oficios=[];activos.forEach(function(p){var o=p.puesto||'Otro';if(oficios.indexOf(o)<0)oficios.push(o)});
+  oficios.sort();
+  if(_qOficio&&oficios.indexOf(_qOficio)<0)_qOficio='';
+  var opts='<option value="">Todos los oficios</option>'+oficios.map(function(o){return '<option value="'+esc(o)+'"'+(o===_qOficio?' selected':'')+'>'+esc(o)+'</option>'}).join('');
+  if(sel.getAttribute('data-k')!==opts){sel.innerHTML=opts;sel.setAttribute('data-k',opts)}
+  if(activos.length<=8){_qBuscar='';_qOficio=''}
+
+  var sin=[],pres=[];
+  activos.forEach(function(p){(regsDia(p.id,fecha).length?pres:sin).push(p)});
+  var sinF=sin.filter(coincideBusqueda),presF=pres.filter(coincideBusqueda);
+  var filtrando=!!(_qBuscar||_qOficio);
+
+  // Botón "repetir último día"
+  var btnAyer=document.getElementById('btn-ayer');
+  var fa=fechaAnteriorConAsistencia(fecha);
+  var nAyer=0;
+  if(fa){var vistos={};(S.asistencia||[]).forEach(function(a){if(a.fecha===fa&&a.pid){var pp=personaPorId(a.pid);if(pp&&!pp.baja&&!regsDia(a.pid,fecha).length)vistos[a.pid]=true}});nAyer=Object.keys(vistos).length}
+  btnAyer.style.display=nAyer?'':'none';
+  btnAyer.textContent='↺ Repetir del '+fmtFechaCorta(fa)+' ('+nAyer+')';
+
+  // Faltan por marcar
+  document.getElementById('qsec-aus').style.display=sin.length?'flex':'none';
+  document.getElementById('qn-aus').textContent='('+(filtrando?sinF.length+' de '+sin.length:sin.length)+')';
+  var verTodos=_verTodosAus||filtrando||sinF.length<=LIM_AUS;
+  var mostrarAus=verTodos?sinF:sinF.slice(0,LIM_AUS);
+  document.getElementById('cua-sinmarcar').innerHTML=mostrarAus.map(function(p){
     return '<button class="pchip" onclick="marcarUno(\''+p.id+'\')">＋ '+esc(p.nombre)+' <small>'+esc(p.puesto||'Otro')+'</small></button>';
   }).join('');
+  var masBox=document.getElementById('qmas');
+  if(!verTodos){masBox.style.display='block';document.getElementById('btn-masaus').textContent='Ver los '+(sinF.length-LIM_AUS)+' restantes ▾'}
+  else if(_verTodosAus&&!filtrando&&sinF.length>LIM_AUS){masBox.style.display='block';document.getElementById('btn-masaus').textContent='Mostrar menos ▴'}
+  else masBox.style.display='none';
+
+  // Presentes (filas compactas, se abren al tocar). Con más de 10 se ven plegados.
+  _nPres=pres.length;
+  var presAb=filtrando||presAbierta(pres.length);
+  document.getElementById('cua-presentes').style.display=presAb?'':'none';
+  document.getElementById('chev-pres').style.transform=presAb?'':'rotate(-90deg)';
+  document.getElementById('qsec-pres').style.display=pres.length?'flex':'none';
+  document.getElementById('qn-pres').textContent='('+(filtrando?presF.length+' de '+pres.length:pres.length)+')';
+  var html='';
+  presF.forEach(function(p){
+    var regs=regsDia(p.id,fecha);
+    var pm=paramDia(regs);
+    var reales=regs.filter(function(a){return a.conceptoId!==GENERAL_ID}).length;
+    var he=pm.hd?' · '+pm.hd+' h extra':'';
+    html+='<div class="pc'+(_pAbierto[p.id]?' open':'')+'" id="pc-'+p.id+'">'
+      +'<div class="pc-row" onclick="togPres(\''+p.id+'\')"><div class="pres-ic">✓</div>'
+      +'<div class="pc-b"><div class="pc-name">'+esc(p.nombre)+'</div>'
+      +'<div class="pc-meta'+(reales?'':' warn')+'">'+esc(p.puesto||'Otro')+' · '
+      +(reales?(reales+(reales===1?' actividad':' actividades')):'sin actividad')+he+'</div></div>'
+      +'<button class="jchip'+(pm.jd<1?' medio':'')+'" onclick="event.stopPropagation();alternarJornada(\''+p.id+'\')" title="Toca para cambiar entre 1 y ½ jornal">'
+      +(pm.jd===0.5?'½':String(pm.jd))+'</button><i class="chev">▾</i></div>'
+      +'<div class="pc-det"><div class="he"><span class="he-lbl">Horas extra</span><div class="stepper">'
+      +'<button onclick="cambiarHE(\''+p.id+'\',-1)">−</button><span>'+pm.hd+' h</span>'
+      +'<button onclick="cambiarHE(\''+p.id+'\',1)">+</button></div></div>'
+      +'<button class="btn-asig-uno" onclick="asignarA(\''+p.id+'\')">'+(reales?'＋ Otra actividad':'＋ Asignar actividad')+'</button>'
+      +'<button class="btn-quitar" onclick="quitarPresente(\''+p.id+'\')">Quitar del día</button></div></div>';
+  });
   document.getElementById('cua-presentes').innerHTML=html||
-    (activos.length?'<div class="cua-empty">Toca el nombre de quien vino hoy.</div>'
-      :'<div class="cua-empty">Aún no hay personal. Toca “＋ Nuevo trabajador” para darlo de alta una sola vez.</div>');
+    (filtrando&&pres.length?'<div class="cua-empty">Ningún presente coincide con el filtro.</div>':
+     (activos.length?(pres.length?'':'<div class="cua-empty">Toca el nombre de quien vino hoy.</div>')
+      :'<div class="cua-empty">Aún no hay personal. Toca “＋ Nuevo trabajador” para darlo de alta una sola vez.</div>'));
+}
+var _presOpen,_nPres=0;
+function presAbierta(n){return _presOpen===undefined?n<=10:_presOpen}
+function togPresSec(){_presOpen=!presAbierta(_nPres);renderCuadrillas()}
+function togPres(pid){
+  _pAbierto[pid]=!_pAbierto[pid];
+  var el=document.getElementById('pc-'+pid);
+  if(el)el.classList.toggle('open',!!_pAbierto[pid]);
+}
+function marcarDeAyer(){
+  var f=fechaSel(),fa=fechaAnteriorConAsistencia(f);
+  if(!fa)return;
+  var n=0,vistos={};
+  S.asistencia.forEach(function(a){
+    if(a.fecha!==fa||!a.pid||vistos[a.pid])return;
+    vistos[a.pid]=true;
+    var p=personaPorId(a.pid);
+    if(p&&!p.baja&&!regsDia(a.pid,f).length){marcarPresente(a.pid,f);n++}
+  });
+  if(n){guardarCambiosAsistencia();toast('✓ '+n+' personas marcadas (como el '+fmtFechaCorta(fa)+')')}
+  renderCuadrillas();
 }
 function marcarUno(pid){marcarPresente(pid,fechaSel());guardarCambiosAsistencia();renderCuadrillas()}
 function marcarTodos(){
@@ -2539,6 +2677,7 @@ function eliminarPersona(pid){
 
 // ── Asignar actividad ──
 function abrirAsignar(pid){
+  _aBuscar='';var qb=document.getElementById('asig-qbuscar');if(qb)qb.value='';
   _sel={};if(pid&&personaPorId(pid))_sel[pid]=true;   // cada asignación empieza con la selección limpia
   document.getElementById('cua-asignar').classList.add('open');
   document.getElementById('btn-asignar').style.display='none';
@@ -2625,6 +2764,20 @@ function guardarAsignacion(){
 
 // ── Actividades del día ──
 function filaJ(n){return n>=1?String(redondear(n,2)):redondear(n,2).toFixed(2)}
+var _actAbierta={};
+function togAct(k){
+  var cerrado=!document.getElementById('ag-'+k).classList.contains('cerrado');
+  _actAbierta[k]=!cerrado;
+  document.getElementById('ag-'+k).classList.toggle('cerrado',cerrado);
+}
+function asignarSinActividad(){
+  var f=fechaSel();
+  var pids=[];
+  regsDia && (S.asistencia||[]).forEach(function(a){if(a.fecha===f&&a.conceptoId===GENERAL_ID&&pids.indexOf(a.pid)<0)pids.push(a.pid)});
+  abrirAsignar();
+  pids.forEach(function(pid){if(personaPorId(pid))_sel[pid]=true});
+  refrescarQuien();
+}
 function renderActividadesDia(del){
   var list=document.getElementById('cua-list');
   var by={},orden=[];
@@ -2638,69 +2791,40 @@ function renderActividadesDia(del){
     list.innerHTML='<div class="cua-empty">Todavía no hay actividades este día.<br>Marca quién vino y toca “＋ Asignar actividad”.</div>';
     return;
   }
+  // Con pocas actividades se ven abiertas; con muchas, cerradas (se abre la que se toca)
+  var abrirPorDefecto=orden.length<=3;
   var html='';
   orden.forEach(function(cid){
     var g=by[cid];
-    html+='<div class="act-head">'+esc((g.partida?g.partida+' — ':'')+g.nombre)
-      +' <span class="cua-hist-link" onclick="toggleCuaHistorial(\''+cid+'\')">Ver historial ▾</span></div>'
+    var jt=0;g.items.forEach(function(a){jt+=Number(a.jornales)||0});
+    var cerrado=(_actAbierta[cid]===undefined)?!abrirPorDefecto:!_actAbierta[cid];
+    html+='<div class="ag'+(cerrado?' cerrado':'')+'" id="ag-'+cid+'">'
+      +'<div class="ag-head" onclick="togAct(\''+cid+'\')"><i class="chev">▾</i>'
+      +'<div class="ag-t">'+(g.partida?'<small>'+esc(g.partida)+' — </small>':'')+esc(g.nombre)+'</div>'
+      +'<div class="ag-n">'+g.items.length+' pers.<br>'+filaJ(jt)+' jorn.</div></div>'
+      +'<div class="ag-body"><div class="ag-tools"><span class="cua-hist-link" onclick="toggleCuaHistorial(\''+cid+'\')">Ver historial ▾</span></div>'
       +'<div class="cua-hist-panel" id="cua-hist-'+cid+'" style="display:none"></div>';
     g.items.sort(ordenReg).forEach(function(a){
       html+='<div class="act-row"><div class="act-name">'+esc(a.trabajador)+'<small>'+esc(a.oficio)+'</small></div>'
         +'<div class="act-j">'+filaJ(Number(a.jornales)||0)+'<small>jornal</small></div>'
         +'<button class="act-x" title="Quitar de esta actividad" onclick="quitarDeActividad(\''+a.id+'\')">✕</button></div>';
     });
+    html+='</div></div>';
   });
   if(gens.length){
-    html+='<div class="act-head gen">Sin actividad asignada <span style="text-transform:none;letter-spacing:0;font-weight:500">(el jornal se paga; asígnalo para cargarlo a un concepto)</span></div>';
+    var cg=(_actAbierta['__gen']===undefined)?(gens.length>6):!_actAbierta['__gen'];
+    html+='<div class="ag gen'+(cg?' cerrado':'')+'" id="ag-__gen"><div class="ag-head" onclick="togAct(\'__gen\')"><i class="chev">▾</i>'
+      +'<div class="ag-t">Sin actividad asignada <small>(el jornal se paga; asígnalo para cargarlo a un concepto)</small></div>'
+      +'<div class="ag-n">'+gens.length+' pers.</div></div><div class="ag-body">'
+      +'<div class="ag-tools"><button class="btn-asig-uno" onclick="asignarSinActividad()">＋ Asignarles actividad a todos</button></div>';
     gens.forEach(function(a){
       html+='<div class="act-row"><div class="act-name">'+esc(a.trabajador)+'<small>'+esc(a.oficio)+'</small></div>'
         +'<div class="act-j">'+filaJ(Number(a.jornales)||0)+'<small>jornal</small></div>'
         +'<button class="btn-asig-uno" onclick="asignarA(\''+a.pid+'\')">Asignar</button></div>';
     });
+    html+='</div></div>';
   }
   list.innerHTML=html;
-}
-function quitarDeActividad(regId){
-  var a=S.asistencia.filter(function(x){return x.id===regId})[0];
-  if(!a)return;
-  if(!confirm('¿Quitar a '+a.trabajador+' de esta actividad?'))return;
-  desasignar(regId);
-  guardarCambiosAsistencia();renderCuadrillas();
-}
-function toggleCuaHistorial(cid){
-  var panel=document.getElementById('cua-hist-'+cid);
-  if(!panel)return;
-  if(panel.style.display==='none'){panel.innerHTML=renderCuaHistorial(cid);panel.style.display='block'}
-  else panel.style.display='none';
-}
-function renderCuaHistorial(cid){
-  var todos=(S.asistencia||[]).filter(function(a){return a.conceptoId===cid});
-  if(!todos.length)return '<div class="cua-hist-empty">Sin registros históricos</div>';
-  todos.sort(function(a,b){return (a.fecha||'').localeCompare(b.fecha||'')||ordenReg(a,b)});
-  var html='<div class="cua-hist-title">Historial completo del concepto</div>';
-  todos.forEach(function(a){
-    html+='<div class="cua-hist-row"><span class="cua-hist-date">'+esc(a.fechaDisplay||fechaIsoADisplay(a.fecha))+'</span>'
-      +'<span class="cua-hist-name">'+esc(a.trabajador)+'</span>'
-      +'<span class="cua-hist-oficio">'+esc(a.oficio)+'</span>'
-      +'<span class="cua-hist-jorn">'+filaJ(Number(a.jornales)||0)+'j</span></div>';
-  });
-  return html;
-}
-function renderHistorialTodo(){
-  var el=document.getElementById('cua-historial');
-  var by={},orden=[];
-  S.asistencia.forEach(function(a){
-    if(!by[a.conceptoId]){by[a.conceptoId]={nombre:a.concepto,partida:a.partida};orden.push(a.conceptoId)}
-  });
-  if(!orden.length){el.innerHTML='<div class="cua-empty">Todavía no hay asistencia registrada.</div>';return}
-  orden.sort(function(a,b){return (a===GENERAL_ID?1:0)-(b===GENERAL_ID?1:0)});
-  var html='<div class="blk"><div class="blk-head"><span class="blk-title">Historial acumulado por concepto</span></div>';
-  orden.forEach(function(cid){
-    var g=by[cid];
-    html+='<div class="act-head'+(cid===GENERAL_ID?' gen':'')+'">'+esc((g.partida?g.partida+' — ':'')+g.nombre)+'</div>'
-      +'<div class="cua-hist-panel">'+renderCuaHistorial(cid)+'</div>';
-  });
-  el.innerHTML=html+'</div>';
 }
 function renderResumenOficio(del){
   var wrap=document.getElementById('cua-resumen-wrap');
