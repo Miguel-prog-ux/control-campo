@@ -105,6 +105,7 @@ body{
 .hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .hdr-brand{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;min-width:0}
 .hdr-brand svg{width:16px;height:16px;flex:none}
+#hdr-logo{display:none!important}
 #hdr-logo img{width:16px;height:16px;object-fit:contain;flex:none;border-radius:3px}
 .hdr-actions{display:flex;gap:6px}
 .hdr-btn{
@@ -636,9 +637,9 @@ input[type=file]{display:none}
     <div class="setup-section">
       <div class="setup-lbl">Tu empresa (opcional — se muestra en vez del logo del Kit)</div>
       <input class="setup-inp" id="inp-empresa" type="text" placeholder="Ej: Constructora Méndez S.A." autocorrect="off">
-      <div class="setup-lbl" style="margin-top:4px">Logo de tu empresa (opcional)</div>
+      <div class="setup-lbl" style="margin-top:4px;display:none">Logo de tu empresa (opcional)</div>
       <input type="file" id="inp-logo" accept="image/*" style="display:none">
-      <button type="button" class="setup-inp last" id="inp-logo-btn" onclick="document.getElementById('inp-logo').click()" style="text-align:left;cursor:pointer;background:transparent;color:#94A3B8;border:1.5px dashed #475569">📷 Toca para elegir logo</button>
+      <button type="button" class="setup-inp last" id="inp-logo-btn" onclick="document.getElementById('inp-logo').click()" style="display:none;text-align:left;cursor:pointer;background:transparent;color:#94A3B8;border:1.5px dashed #475569">📷 Toca para elegir logo</button>
     </div>
     <div class="setup-section">
       <div class="setup-lbl">Tu nombre</div>
@@ -1026,7 +1027,7 @@ function aplicarMarcaApp(){
   var txt=document.getElementById('hdr-brand-txt');
   var logo=document.getElementById('hdr-logo');
   if(txt)txt.textContent=S.empresa?S.empresa:'CTRL CAMPO v2';
-  if(logo)logo.innerHTML=S.logoDataUrl?'<img src="'+S.logoDataUrl+'" alt="Logo">':ICONO_DEF;
+  if(logo){logo.innerHTML='';logo.style.display='none'}   // sin logo de empresa en el encabezado: solo el nombre
 }
 
 function entrar(){
