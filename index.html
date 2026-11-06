@@ -2512,7 +2512,7 @@ function renderPersonalDia(fecha){
   var nAyer=0;
   if(fa){var vistos={};(S.asistencia||[]).forEach(function(a){if(a.fecha===fa&&a.pid){var pp=personaPorId(a.pid);if(pp&&!pp.baja&&!regsDia(a.pid,fecha).length)vistos[a.pid]=true}});nAyer=Object.keys(vistos).length}
   btnAyer.style.display=nAyer?'':'none';
-  btnAyer.textContent='↺ Repetir del '+fmtFechaCorta(fa)+' ('+nAyer+')';
+  btnAyer.textContent='↺ Repetir personal y actividades del '+fmtFechaCorta(fa)+' ('+nAyer+')';
 
   // Faltan por marcar
   document.getElementById('qsec-aus').style.display=sin.length?'flex':'none';
@@ -2567,16 +2567,27 @@ function togPres(pid){
   if(el)el.classList.toggle('open',!!_pAbierto[pid]);
 }
 function marcarDeAyer(){
+  // Repite a cada persona Y sus actividades del último día trabajado; las ya terminadas (100%) se omiten.
   var f=fechaSel(),fa=fechaAnteriorConAsistencia(f);
   if(!fa)return;
-  var n=0,vistos={};
-  S.asistencia.forEach(function(a){
+  var n=0,nAct=0,vistos={};
+  (S.asistencia||[]).slice().forEach(function(a){
     if(a.fecha!==fa||!a.pid||vistos[a.pid])return;
     vistos[a.pid]=true;
     var p=personaPorId(a.pid);
-    if(p&&!p.baja&&!regsDia(a.pid,f).length){marcarPresente(a.pid,f);n++}
+    if(!p||p.baja||regsDia(a.pid,f).length)return;
+    var acts=[];
+    regsDia(a.pid,fa).forEach(function(r){
+      if(r.conceptoId===GENERAL_ID||acts.indexOf(r.conceptoId)>=0)return;
+      var c=conceptoPorId(r.conceptoId);
+      if(!c)return;
+      if((S.avances[c.id]||0)>=(c.contratado||1))return;   // ya terminada
+      acts.push(r.conceptoId);
+    });
+    marcarPresente(a.pid,f);n++;
+    acts.forEach(function(cid){if(asignarPersona(a.pid,cid,f))nAct++});
   });
-  if(n){guardarCambiosAsistencia();toast('✓ '+n+' personas marcadas (como el '+fmtFechaCorta(fa)+')')}
+  if(n){guardarCambiosAsistencia();toast('✓ '+n+' personas'+(nAct?' y '+nAct+' actividades':'')+' repetidas (como el '+fmtFechaCorta(fa)+')')}
   renderCuadrillas();
 }
 function marcarUno(pid){marcarPresente(pid,fechaSel());guardarCambiosAsistencia();renderCuadrillas()}
