@@ -126,7 +126,7 @@ body{
 .hdr-badge.semana{background:#38BDF8;color:#0F172A}
 
 /* KPIs — mismos colores que el banner del Excel */
-.kpi-bar{display:grid;grid-template-columns:repeat(4,1fr);background:#1E293B;border-bottom:1px solid rgba(255,255,255,.05)}
+.kpi-bar{display:grid;grid-template-columns:repeat(5,1fr);background:#1E293B;border-bottom:1px solid rgba(255,255,255,.05)}
 .kpi-item{padding:10px 4px;text-align:center;border-right:1px solid rgba(255,255,255,.05)}
 .kpi-item:last-child{border-right:none}
 .kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:#F8FAFC;line-height:1}
@@ -184,6 +184,7 @@ body{
 .ccard-vols{display:flex;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .ccard-vols .acum{color:var(--acc);font-weight:700}
 .badge{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;flex-shrink:0;align-self:center;letter-spacing:.3px}
+.b-late{background:var(--late-bg);color:var(--late)}.ccard-icon.late{background:var(--late-bg)}.prog-fill.late{background:var(--late)}.kpi-val.r{color:#F87171}
 .b-done{background:var(--done-bg);color:var(--done)}.b-prog{background:var(--prog-bg);color:var(--prog)}.b-none{background:var(--none-bg);color:var(--none)}
 
 .prog-wrap{padding:0 12px 10px}
@@ -703,6 +704,7 @@ input[type=file]{display:none}
     <div class="kpi-item"><div class="kpi-val g" id="k-done">0</div><div class="kpi-lbl">Complet.</div></div>
     <div class="kpi-item"><div class="kpi-val a" id="k-prog">0</div><div class="kpi-lbl">En curso</div></div>
     <div class="kpi-item"><div class="kpi-val n" id="k-pend">0</div><div class="kpi-lbl">Sin inic.</div></div>
+    <div class="kpi-item"><div class="kpi-val r" id="k-late">0</div><div class="kpi-lbl">Atrasados</div></div>
   </div>
 
   <div class="nav-tabs-wrap">
@@ -1229,8 +1231,9 @@ function procesarCatalogo(cat){
   var c=[];
   Object.keys(cat.conceptos).sort().forEach(function(id){
     var x=cat.conceptos[id];
-    if(x&&x.nombre)c.push({id:id,partida:x.partida||'General',nombre:x.nombre,unidad:x.unidad||'u',contratado:x.contratado||0,presupuesto:Number(x.presupuesto)||0});
+    if(x&&x.nombre)c.push({id:id,partida:x.partida||'General',nombre:x.nombre,unidad:x.unidad||'u',contratado:x.contratado||0,presupuesto:Number(x.presupuesto)||0,ini:x.inicio||'',fin:x.fin||''});
   });
+  S.obraIni=cat.fechaInicio||S.obraIni||'';S.obraFin=cat.fechaTermino||S.obraFin||'';
   if(c.length){S.conceptos=c;save();toast(c.length+' conceptos cargados desde Excel')}
   renderTodo();
 }
@@ -1406,6 +1409,22 @@ function irAPartida(delta){
   },{passive:true});
 })();
 
+// % de tiempo esperado a hoy (0 a 1): fechas propias del concepto; si no las tiene, las de la obra.
+function pctEsperado(c){
+  function d(t){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(t||'');return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+  var ini=d(c&&c.ini),fin=d(c&&c.fin);
+  if(!(ini&&fin&&fin>=ini)){ini=d(S.obraIni);fin=d(S.obraFin)}
+  if(!(ini&&fin&&fin>ini))return 0;
+  var h=new Date();h=new Date(h.getFullYear(),h.getMonth(),h.getDate());
+  var e=(h-ini)/86400000+1,t=(fin-ini)/86400000+1;
+  return Math.max(0,Math.min(1,e/t));
+}
+function estadoConcepto(c){
+  var p=(S.avances[c.id]||0)/(c.contratado||1);
+  if(p>=1)return 'done';
+  if(p<=0)return 'none';
+  return p<pctEsperado(c)-0.12?'late':'prog';
+}
 function crearCard(c){
   var acum=S.avances[c.id]||0;
   var cont=c.contratado||1;
@@ -1413,6 +1432,7 @@ function crearCard(c){
   var resto=Math.max(0,cont-acum);
   var badge,bClass,iconClass,fillClass;
   if(pct>=100){badge='Completado';bClass='b-done';iconClass='done';fillClass='done'}
+  else if(pct>0&&estadoConcepto(c)==='late'){badge='Atrasado';bClass='b-late';iconClass='late';fillClass='late'}
   else if(pct>0){badge='En progreso';bClass='b-prog';iconClass='prog';fillClass=''}
   else{badge='Sin iniciar';bClass='b-none';iconClass='';fillClass=''}
   var diasC=(S.dias&&S.dias[c.id])?(S.dias[c.id].length):0;
@@ -1488,22 +1508,24 @@ function renderMiniBit(id){
 
 function actualizarKPIs(){
   if(!S.conceptos||!S.conceptos.length){
-    ['k-avance','k-done','k-prog','k-pend'].forEach(function(id){document.getElementById(id).textContent=id==='k-avance'?'0%':'0'});
+    ['k-avance','k-done','k-prog','k-pend','k-late'].forEach(function(id){document.getElementById(id).textContent=id==='k-avance'?'0%':'0'});
     return;
   }
-  var total=0,done=0,prog=0,pend=0,sumPres=0,totPes=0;
+  var total=0,done=0,prog=0,pend=0,late=0,sumPres=0,totPes=0;
   S.conceptos.forEach(function(c){sumPres+=Number(c.presupuesto)||0});
   S.conceptos.forEach(function(c){
     var p=(S.avances[c.id]||0)/(c.contratado||1);
     var w=sumPres>0?(Number(c.presupuesto)||0)/sumPres:1/S.conceptos.length;
     totPes+=w*Math.min(p,1);
     total+=Math.min(p,1);
-    if(p>=1)done++;else if(p>0)prog++;else pend++;
+    var es=estadoConcepto(c);
+    if(es==='done')done++;else if(es==='late')late++;else if(es==='prog')prog++;else pend++;
   });
   document.getElementById('k-avance').textContent=Math.round(totPes*100)+'%';
   document.getElementById('k-done').textContent=done;
   document.getElementById('k-prog').textContent=prog;
   document.getElementById('k-pend').textContent=pend;
+  document.getElementById('k-late').textContent=late;
 }
 
 // ═══════════════════════════════════════════════════
