@@ -814,6 +814,7 @@ input[type=file]{display:none}
           </div>
         </div>
 
+        <button class="btn-main btn-block" id="btn-continuar" onclick="continuarActividades()" style="display:none;margin-bottom:8px"></button>
         <button class="btn-main btn-block" id="btn-asignar" onclick="abrirAsignar()">＋ Asignar actividad</button>
 
         <div class="blk asig" id="cua-asignar">
@@ -2447,6 +2448,7 @@ function renderCuadrillas(){
   if(hist){renderHistorialTodo();return}
   renderPersonalDia(fecha);
   renderActividadesDia(del);
+  actualizarBtnContinuar();
   renderResumenOficio(del);
   refrescarQuien();
   if(_gestionAbierta)renderGestion();
@@ -2589,6 +2591,38 @@ function marcarDeAyer(){
   });
   if(n){guardarCambiosAsistencia();toast('✓ '+n+' personas'+(nAct?' y '+nAct+' actividades':'')+' repetidas (como el '+fmtFechaCorta(fa)+')')}
   renderCuadrillas();
+}
+// Actividades de ayer que siguen vigentes (concepto no terminado) y que hoy aún no tiene cada persona.
+function pendientesContinuar(f){
+  var fa=fechaAnteriorConAsistencia(f),res=[];
+  if(!fa)return {fa:'',lista:res};
+  var vistos={};
+  (S.asistencia||[]).forEach(function(a){
+    if(a.fecha!==fa||!a.pid||a.conceptoId===GENERAL_ID)return;
+    var k=a.pid+'|'+a.conceptoId;
+    if(vistos[k])return;vistos[k]=true;
+    var p=personaPorId(a.pid),c=conceptoPorId(a.conceptoId);
+    if(!p||p.baja||!c)return;
+    if((S.avances[c.id]||0)>=(c.contratado||1))return;
+    if(regsDia(a.pid,f).some(function(r){return r.conceptoId===a.conceptoId}))return;
+    res.push({pid:a.pid,cid:a.conceptoId});
+  });
+  return {fa:fa,lista:res};
+}
+function continuarActividades(){
+  var f=fechaSel(),pc=pendientesContinuar(f);
+  if(!pc.lista.length)return;
+  var n=0;
+  pc.lista.forEach(function(x){if(asignarPersona(x.pid,x.cid,f))n++});
+  if(n){guardarCambiosAsistencia();toast('✓ '+n+' asignaciones continuadas (como el '+fmtFechaCorta(pc.fa)+')')}
+  renderCuadrillas();
+}
+function actualizarBtnContinuar(){
+  var b=document.getElementById('btn-continuar');if(!b)return;
+  var pc=pendientesContinuar(fechaSel());
+  var pers={};pc.lista.forEach(function(x){pers[x.pid]=1});
+  b.style.display=pc.lista.length?'':'none';
+  b.textContent='↺ Continuar actividades del '+fmtFechaCorta(pc.fa)+' ('+Object.keys(pers).length+' personas)';
 }
 function marcarUno(pid){marcarPresente(pid,fechaSel());guardarCambiosAsistencia();renderCuadrillas()}
 function marcarTodos(){
