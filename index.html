@@ -2884,7 +2884,7 @@ function renderActividadesDia(del){
     html+='<div class="ag gen'+(cg?' cerrado':'')+'" id="ag-__gen"><div class="ag-head" onclick="togAct(\'__gen\')"><i class="chev">▾</i>'
       +'<div class="ag-t">Sin actividad asignada <small>(el jornal se paga; asígnalo para cargarlo a un concepto)</small></div>'
       +'<div class="ag-n">'+gens.length+' pers.</div></div><div class="ag-body">'
-      +'<div class="ag-tools"><button class="btn-asig-uno" onclick="asignarSinActividad()">＋ Asignarles actividad a todos</button></div>';
+      +'';
     gens.forEach(function(a){
       html+='<div class="act-row"><div class="act-name">'+esc(a.trabajador)+'<small>'+esc(a.oficio)+'</small></div>'
         +'<div class="act-j">'+filaJ(Number(a.jornales)||0)+'<small>jornal</small></div>'
