@@ -2340,7 +2340,45 @@ function toggleCrew(cid){
 }
 function toggleEditCrews(){_editCrews=!_editCrews;refrescarQuien()}
 
-function quienHTML(fecha,esAsignar){
+// Última actividad real de la persona (hasta esa fecha); si ese concepto ya está al 100% devuelve null.
+function actividadVigente(pid,fecha){
+  var best=null;
+  (S.asistencia||[]).forEach(function(a){
+    if(a.pid!==pid||a.conceptoId===GENERAL_ID||a.fecha>fecha)return;
+    if(!best||a.fecha>best.fecha||(a.fecha===best.fecha&&(a.ts||0)>=(best.ts||0)))best=a;
+  });
+  if(!best)return null;
+  var c=conceptoPorId(best.conceptoId);
+  if(!c)return null;
+  if((S.avances[c.id]||0)>=(c.contratado||1))return null;
+  return c;
+}
+// ✕ en una actividad: dos opciones (sigue presente para moverlo / no vino hoy)
+function quitarDeActividad(regId){
+  var a=(S.asistencia||[]).filter(function(x){return x.id===regId})[0];
+  if(!a)return;
+  var old=document.getElementById('qa-ov');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='qa-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:flex;align-items:flex-end;justify-content:center;padding:12px';
+  ov.onclick=function(e){if(e.target===ov)ov.remove()};
+  ov.innerHTML='<div style="background:var(--card);border:1px solid var(--line2);border-radius:14px;width:100%;max-width:460px;padding:16px">'
+    +'<div style="font-weight:800;font-size:16px;color:var(--tx)">'+esc(a.trabajador)+'</div>'
+    +'<div style="color:var(--muted);font-size:13px;margin:2px 0 14px">¿Qué pasó?</div>'
+    +'<button class="btn-main btn-block" onclick="quitarSoloActividad(\''+regId+'\')">Quitar solo de esta actividad<br><small style="font-weight:500;opacity:.8">sigue presente, para pasarlo a otra</small></button>'
+    +'<button class="btn-sec btn-block" onclick="noVinoHoy(\''+a.pid+'\')">No vino hoy<br><small style="font-weight:500;opacity:.8">se quita del día y no se le paga jornal</small></button>'
+    +'<button class="btn-ghost btn-block" onclick="document.getElementById(\'qa-ov\').remove()" style="margin-bottom:0">Cancelar</button></div>';
+  document.body.appendChild(ov);
+}
+function quitarSoloActividad(regId){
+  var ov=document.getElementById('qa-ov');if(ov)ov.remove();
+  desasignar(regId);guardarCambiosAsistencia();renderCuadrillas();
+}
+function noVinoHoy(pid){
+  var ov=document.getElementById('qa-ov');if(ov)ov.remove();
+  quitarDelDia(pid,fechaSel());guardarCambiosAsistencia();renderCuadrillas();
+  toast('Quitado del día');
+}
+function quienHTML(fecha,esAsignar,cid){
   var activos=(S.personal||[]).filter(function(p){return !p.baja});
   if(!activos.length){
     return '<div class="quien-vacio">Aún no hay personal dado de alta. Agrégalo en la pestaña <button class="link" onclick="switchToScreen(\'cuadrillas\')">Cuadrillas</button>.</div>';
@@ -2358,14 +2396,24 @@ function quienHTML(fecha,esAsignar){
   var pres=[],aus=[];
   activos.forEach(function(p){(regsDia(p.id,fecha).length?pres:aus).push(p)});
   pres.sort(porNombre);aus.sort(porNombre);
+  // Regla: quien está ligado a una actividad sin terminar no sale en las listas de otras actividades.
+  // Se libera solo cuando su concepto llega al 100%. Con el enlace se puede ver a todos (casos especiales).
+  var nYa=0,cidEf=esAsignar?(_asigConcepto||''):(cid||'');
+  function ligada(p){var c=actividadVigente(p.id,fecha);return (c&&c.id!==cidEf)?c:null}
+  function yaAsig(p){return !_sel[p.id]&&!!ligada(p)}
+  if(esAsignar||cid){
+    nYa=pres.filter(yaAsig).length+aus.filter(yaAsig).length;
+    if(!_verAsig){pres=pres.filter(function(p){return !yaAsig(p)});aus=aus.filter(function(p){return !yaAsig(p)})}
+  }
   if(esAsignar&&_aBuscar){
     var qq=norm2(_aBuscar);
     pres=pres.filter(function(p){return norm2(p.nombre+' '+(p.puesto||'')).indexOf(qq)>=0});
     aus=aus.filter(function(p){return norm2(p.nombre+' '+(p.puesto||'')).indexOf(qq)>=0});
   }
   function chip(p,presente){
+    var lc=(_verAsig&&(esAsignar||cid))?ligada(p):null;
     return '<button class="pchip'+(_sel[p.id]?' on':'')+(presente?'':' dim')+'" onclick="toggleSel(\''+p.id+'\')">'
-      +esc(p.nombre)+' <small>'+esc(p.puesto||'Otro')+'</small></button>';
+      +esc(p.nombre)+' <small>'+esc(p.puesto||'Otro')+(lc?' · en '+esc(String(lc.nombre).slice(0,22)):'')+'</small></button>';
   }
   if(esAsignar&&pres.length>1&&!_aBuscar){
     var todosP=pres.every(function(p){return _sel[p.id]});
@@ -2373,6 +2421,8 @@ function quienHTML(fecha,esAsignar){
   }
   h+='<div class="chips">'+pres.map(function(p){return chip(p,true)}).join('')+aus.map(function(p){return chip(p,false)}).join('')+'</div>';
   if(esAsignar&&_aBuscar&&!pres.length&&!aus.length)h+='<div class="quien-vacio">Nadie coincide con la búsqueda.</div>';
+  if((esAsignar||cid)&&!_aBuscar&&!pres.length&&!aus.length&&nYa&&!_verAsig)h+='<div class="quien-vacio">Todos los presentes ya tienen actividad hoy.</div>';
+  if((esAsignar||cid)&&nYa)h+='<div style="margin-top:6px"><button class="link" onclick="_verAsig=!_verAsig;refrescarQuien()">'+(_verAsig?'Ocultar a los ya asignados':'Mostrar también a los ya asignados ('+nYa+')')+'</button></div>';
   if(aus.length)h+='<div class="quien-vacio" style="margin-top:6px">Los atenuados aún no están marcados como presentes: se marcan solos al guardar.</div>';
   return h;
 }
@@ -2383,8 +2433,9 @@ function refrescarQuien(){
     if(panel&&!panel.classList.contains('open'))return;   // solo lo que se está viendo
     var esCua=el.getAttribute('data-ctx')==='cua';
     var ctx=esCua?fechaSel():fechaHoyIso();
-    var ck=ctx+(esCua?'|a':'|b');
-    if(!cache[ck])cache[ck]=quienHTML(ctx,esCua);
+    var cidP=(!esCua&&panel&&/^panel-/.test(panel.id))?panel.id.slice(6):'';
+    var ck=ctx+(esCua?'|a':'|b|'+cidP);
+    if(!cache[ck])cache[ck]=quienHTML(ctx,esCua,cidP);
     el.innerHTML=cache[ck];
   });
   var ns=document.getElementById('asig-nsel');
@@ -2414,6 +2465,7 @@ function borrarCuadrilla(id){
 var _cuaVerTodo=false;
 var _cuaDiaInit='';
 var _asigConcepto=null;
+var _verAsig=false;
 var _gestionAbierta=false;
 
 function initCuadrillas(){
