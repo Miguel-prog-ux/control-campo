@@ -2109,10 +2109,134 @@ function actualizarAvisoSinActividad(){
   if(!l.length){el.style.display='none';el.innerHTML='';return}
   var ult=l.slice(-6).reverse();
   el.innerHTML='<div class="as-t">⚠ Jornales sin actividad asignada</div><div class="as-c">'
-    +ult.map(function(x){return '<button class="btn-chip" onclick="irAFecha(\''+x.f+'\')">'+fmtFechaCorta(x.f)+' · '+x.n+'</button>'}).join('')
+    +ult.map(function(x){return '<button class="btn-chip" onclick="abrirPendientes(\''+x.f+'\')">'+fmtFechaCorta(x.f)+' · '+x.n+'</button>'}).join('')
     +(l.length>6?'<span class="as-m">+'+(l.length-6)+' más</span>':'')
-    +'</div><div class="as-s">Toca una fecha y asígnales su actividad para que el costo llegue a su concepto.</div>';
+    +'</div><div class="as-s">Toca una fecha: te muestro quién falta y una actividad sugerida para cada uno.</div>';
   el.style.display='block';
+}
+
+// ── Pantalla "Pendientes del día": asignar de un toque a quienes quedaron sin actividad ──
+var _pendF='',_pendSel={};
+function _jornalesConcepto(cid){
+  var t=0;(S.asistencia||[]).forEach(function(a){if(a.conceptoId===cid)t+=(+a.jornales||0)});
+  return Math.round(t*100)/100;
+}
+function _pendConceptosDia(f){
+  var ids={},disp=fechaIsoADisplay(f);
+  (S.bitacora||[]).forEach(function(b){if(b.tipo==='avance'&&b.fecha===disp&&b.conceptoId)ids[b.conceptoId]=1});
+  (S.asistencia||[]).forEach(function(a){if(a.fecha===f&&a.conceptoId&&a.conceptoId!==GENERAL_ID)ids[a.conceptoId]=1});
+  return Object.keys(ids).filter(function(id){return conceptoPorId(id)});
+}
+function _pendSugerido(pid,f,delDia){
+  var ant=null,sig=null;
+  (S.asistencia||[]).forEach(function(a){
+    if(a.pid!==pid||a.conceptoId===GENERAL_ID||!a.fecha||a.fecha===f)return;
+    if(a.fecha<f){if(!ant||a.fecha>ant.fecha)ant=a}
+    else{if(!sig||a.fecha<sig.fecha)sig=a}
+  });
+  var en=function(a){return a&&delDia.indexOf(a.conceptoId)>=0};
+  var r=null;
+  if(ant&&(!delDia.length||en(ant)))r=ant;
+  else if(en(sig))r=sig;
+  else if(ant)r=ant;
+  else if(sig)r=sig;
+  if(r&&conceptoPorId(r.conceptoId))return r.conceptoId;
+  if(delDia.length===1)return delDia[0];
+  return '';
+}
+function _pendLista(f){
+  var m={};
+  (S.asistencia||[]).forEach(function(a){
+    if(a.conceptoId!==GENERAL_ID||a.fecha!==f)return;
+    var k=a.pid||a.trabajador;
+    if(!m[k])m[k]={pid:a.pid,nombre:a.trabajador,j:0};
+    m[k].j+=(+a.jornales||0);
+  });
+  return Object.keys(m).map(function(k){return m[k]}).sort(function(a,b){return norm2(a.nombre).localeCompare(norm2(b.nombre))});
+}
+function abrirPendientes(f){
+  _pendF=f;_pendSel={};
+  var lista=_pendLista(f);
+  if(!lista.length){actualizarAvisoSinActividad();toast('Ese día ya no tiene pendientes');return}
+  var delDia=_pendConceptosDia(f);
+  lista.forEach(function(x){_pendSel[x.pid]=_pendSugerido(x.pid,f,delDia)});
+  dibujarPendientes();
+}
+function _optConceptos(sel,delDia){
+  var todos=(S.conceptos||[]).slice();
+  var sug=delDia.map(conceptoPorId).filter(Boolean);
+  var resto=todos.filter(function(c){return delDia.indexOf(c.id)<0});
+  var lab=function(c){return esc(String(c.nombre).slice(0,46))};
+  var h='<option value="">— elegir actividad —</option>';
+  if(sug.length)h+='<optgroup label="Con avance ese día">'+sug.map(function(c){return '<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+lab(c)+'</option>'}).join('')+'</optgroup>';
+  h+='<optgroup label="Todas las actividades">'+resto.map(function(c){
+    var fin=(S.avances[c.id]||0)>=(c.contratado||1);
+    return '<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+lab(c)+(fin?' ✓':'')+'</option>'}).join('')+'</optgroup>';
+  return h;
+}
+function dibujarPendientes(){
+  var f=_pendF,lista=_pendLista(f);
+  var ov=document.getElementById('pend-ov');
+  if(!lista.length){if(ov)ov.remove();actualizarAvisoSinActividad();renderCuadrillas();toast('✓ Sin pendientes en '+fmtFechaCorta(f));return}
+  if(!ov){
+    ov=document.createElement('div');ov.id='pend-ov';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:flex;align-items:flex-end;justify-content:center;padding:10px';
+    ov.onclick=function(e){if(e.target===ov)ov.remove()};
+    document.body.appendChild(ov);
+  }
+  var delDia=_pendConceptosDia(f);
+  var sk=Object.keys(_pendSel).length;
+  var rows=lista.map(function(x){
+    var sel=_pendSel[x.pid]||'';
+    var sug=_pendSugerido(x.pid,f,delDia)===sel&&sel?' <small style="color:var(--acc)">★ sugerida</small>':'';
+    return '<div style="padding:10px 0;border-top:1px solid var(--line2)">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:var(--tx)">'+esc(x.nombre)+'</b>'
+      +'<span style="color:var(--muted);font-size:12px">'+x.j+(x.j===1?' jornal':' jornales')+sug+'</span></div>'
+      +'<select onchange="pendElegir(\''+x.pid+'\',this.value)" style="width:100%;margin-top:6px;background:var(--input);border:1.5px solid var(--line);border-radius:8px;color:var(--tx);font-size:14px;padding:9px 10px">'
+      +_optConceptos(sel,delDia)+'</select></div>';
+  }).join('');
+  ov.innerHTML='<div style="background:var(--card);border:1px solid var(--line2);border-radius:14px;width:100%;max-width:480px;max-height:92vh;display:flex;flex-direction:column">'
+    +'<div style="padding:14px 16px 8px"><div style="font-weight:800;font-size:16px;color:var(--tx)">Pendientes del '+fmtFechaCorta(f)+'</div>'
+    +'<div style="color:var(--muted);font-size:12px;margin-top:2px">Se les paga el jornal; elige su actividad para que el costo llegue a su concepto.'
+    +' La ★ es una sugerencia (su actividad de otros días o la que tuvo avance ese día).</div></div>'
+    +'<div style="overflow:auto;padding:0 16px">'+rows+'</div>'
+    +'<div style="padding:10px 16px 14px;border-top:1px solid var(--line2)">'
+    +'<div id="pend-res" style="font-size:12px;color:var(--tx2);margin-bottom:8px"></div>'
+    +'<button id="pend-go" class="btn-main btn-block" onclick="pendAsignar()"></button>'
+    +'<div style="font-size:11px;color:var(--muted);margin:6px 0 8px">¿Trabajó en dos actividades ese día? Asígnalo a una aquí y luego agrégalo a la otra desde Cuadrillas: su jornal se reparte entre las dos.</div>'
+    +'<button class="btn-ghost btn-block" onclick="document.getElementById(\'pend-ov\').remove()" style="margin-bottom:0">Cerrar</button></div></div>';
+  pendResumen();
+}
+function pendElegir(pid,cid){_pendSel[pid]=cid;pendResumen()}
+function pendResumen(){
+  var lista=_pendLista(_pendF),por={},n=0,jt=0;
+  lista.forEach(function(x){
+    var cid=_pendSel[x.pid];if(!cid)return;
+    n++;jt+=x.j;por[cid]=(por[cid]||0)+x.j;
+  });
+  var txt=Object.keys(por).map(function(cid){
+    var c=conceptoPorId(cid),ya=_jornalesConcepto(cid);
+    return '• '+esc(String(c.nombre).slice(0,34))+': +'+(Math.round(por[cid]*100)/100)+(por[cid]===1?' jornal':' jornales')+' (ya lleva '+ya+')';
+  }).join('<br>');
+  var r=document.getElementById('pend-res'),b=document.getElementById('pend-go');
+  if(r)r.innerHTML=n?txt:'Elige la actividad de cada persona.';
+  if(b){b.disabled=!n;b.style.opacity=n?'1':'.5';
+    b.textContent=n?('Asignar '+n+(n===1?' persona':' personas')+' · '+(Math.round(jt*100)/100)+(jt===1?' jornal':' jornales')):'Asignar'}
+}
+function pendAsignar(){
+  var lista=_pendLista(_pendF),k=0;
+  lista.forEach(function(x){
+    var cid=_pendSel[x.pid];if(!cid||!x.pid)return;
+    asignarPersona(x.pid,cid,_pendF);k++;
+  });
+  if(!k)return;
+  guardarCambiosAsistencia();
+  actualizarAvisoSinActividad();
+  var f=_pendF;
+  if(_pendLista(f).length){_pendSel={};var dd=_pendConceptosDia(f);_pendLista(f).forEach(function(x){_pendSel[x.pid]=_pendSugerido(x.pid,f,dd)})}
+  dibujarPendientes();
+  if(document.getElementById('cua-fecha'))renderCuadrillas();
+  toast('✓ '+k+(k===1?' persona asignada':' personas asignadas'));
 }
 function irAFecha(f){
   _cuaVerTodo=false;
@@ -2136,6 +2260,7 @@ function asignarAntesDeSync(){
   var tabs=document.querySelectorAll('.nav-tab');
   switchScreen('cuadrillas',tabs[2]);
   irHoy();
+  abrirPendientes(fechaHoyIso());
 }
 function syncDeTodosModos(){
   var ov=document.getElementById('sync-ov');if(ov)ov.remove();
