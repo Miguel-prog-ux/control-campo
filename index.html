@@ -184,6 +184,11 @@ body{
 .ccard-vols{display:flex;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .ccard-vols .acum{color:var(--acc);font-weight:700}
 .badge{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;flex-shrink:0;align-self:center;letter-spacing:.3px}
+.aviso-sin{margin:0 0 10px;padding:10px 12px;border:1px solid #F59E0B;background:rgba(245,158,11,.10);border-radius:12px}
+.aviso-sin .as-t{font-weight:800;font-size:13px;color:#FBBF24;margin-bottom:6px}
+.aviso-sin .as-c{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.aviso-sin .as-m{font-size:12px;color:var(--muted)}
+.aviso-sin .as-s{font-size:11px;color:var(--muted);margin-top:6px}
 .b-late{background:var(--late-bg);color:var(--late)}.ccard-icon.late{background:var(--late-bg)}.prog-fill.late{background:var(--late)}.kpi-val.r{color:#F87171}
 .b-done{background:var(--done-bg);color:var(--done)}.b-prog{background:var(--prog-bg);color:var(--prog)}.b-none{background:var(--none-bg);color:var(--none)}
 
@@ -771,6 +776,8 @@ input[type=file]{display:none}
         <div class="cua-kpi a"><b id="ck-conceptos">0</b><span>Actividades</span></div>
       </div>
 
+      <div id="cua-aviso-sin" class="aviso-sin" style="display:none"></div>
+
       <div class="cua-datebar">
         <span class="cua-date-lbl">Fecha</span>
         <input type="date" id="cua-fecha" class="cua-date-inp" onchange="renderCuadrillas()">
@@ -1316,8 +1323,11 @@ function pushFirebase(cb){
   });
 }
 
+var _syncOk=false;
 function sincronizar(){
   if(!S.useFirebase){toast('Configura Firebase para sincronizar');return}
+  if(!_syncOk){var nSin=sinActividadHoy();if(nSin>0){preguntarSyncSinAct(nSin);return}}
+  _syncOk=false;
   pushFirebase();
   setTimeout(cargarFirebase,700);
 }
@@ -2078,6 +2088,59 @@ function marcarBorrado(id){if(!S.borrados)S.borrados={};S.borrados[id]=Date.now(
 function personaPorId(pid){return (S.personal||[]).filter(function(p){return p.id===pid})[0]||null}
 function cuadrillaPorId(id){return (S.cuadrillas||[]).filter(function(c){return c.id===id})[0]||null}
 function conceptoPorId(id){return (S.conceptos||[]).filter(function(c){return c.id===id})[0]||null}
+// ── Jornales sin actividad asignada (regla de costos: cada jornal debe cargarse a un concepto) ──
+function sinActividadPorDia(antesDe){
+  var m={};
+  (S.asistencia||[]).forEach(function(a){
+    if(a.conceptoId!==GENERAL_ID||!a.fecha)return;
+    if(antesDe&&a.fecha>=antesDe)return;
+    (m[a.fecha]=m[a.fecha]||{})[a.pid||a.trabajador]=1;
+  });
+  return Object.keys(m).sort().map(function(f){return {f:f,n:Object.keys(m[f]).length}});
+}
+function sinActividadHoy(){
+  var h=fechaHoyIso(),m={};
+  (S.asistencia||[]).forEach(function(a){if(a.conceptoId===GENERAL_ID&&a.fecha===h)m[a.pid||a.trabajador]=1});
+  return Object.keys(m).length;
+}
+function actualizarAvisoSinActividad(){
+  var el=document.getElementById('cua-aviso-sin');if(!el)return;
+  var l=sinActividadPorDia(fechaHoyIso());
+  if(!l.length){el.style.display='none';el.innerHTML='';return}
+  var ult=l.slice(-6).reverse();
+  el.innerHTML='<div class="as-t">⚠ Jornales sin actividad asignada</div><div class="as-c">'
+    +ult.map(function(x){return '<button class="btn-chip" onclick="irAFecha(\''+x.f+'\')">'+fmtFechaCorta(x.f)+' · '+x.n+'</button>'}).join('')
+    +(l.length>6?'<span class="as-m">+'+(l.length-6)+' más</span>':'')
+    +'</div><div class="as-s">Toca una fecha y asígnales su actividad para que el costo llegue a su concepto.</div>';
+  el.style.display='block';
+}
+function irAFecha(f){
+  _cuaVerTodo=false;
+  var el=document.getElementById('cua-fecha');if(el)el.value=f;
+  renderCuadrillas();window.scrollTo(0,0);
+}
+function preguntarSyncSinAct(n){
+  var old=document.getElementById('sync-ov');if(old)old.remove();
+  var ov=document.createElement('div');ov.id='sync-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:flex;align-items:flex-end;justify-content:center;padding:12px';
+  ov.onclick=function(e){if(e.target===ov)ov.remove()};
+  ov.innerHTML='<div style="background:var(--card);border:1px solid var(--line2);border-radius:14px;width:100%;max-width:460px;padding:16px">'
+    +'<div style="font-weight:800;font-size:16px;color:var(--tx)">'+n+(n===1?' persona sigue':' personas siguen')+' sin actividad hoy</div>'
+    +'<div style="color:var(--muted);font-size:13px;margin:4px 0 14px">Se les paga el jornal, pero no se carga a ningún concepto.</div>'
+    +'<button class="btn-main btn-block" onclick="asignarAntesDeSync()">Asignarlas ahora</button>'
+    +'<button class="btn-sec btn-block" onclick="syncDeTodosModos()" style="margin-bottom:0">Sincronizar de todos modos</button></div>';
+  document.body.appendChild(ov);
+}
+function asignarAntesDeSync(){
+  var ov=document.getElementById('sync-ov');if(ov)ov.remove();
+  var tabs=document.querySelectorAll('.nav-tab');
+  switchScreen('cuadrillas',tabs[2]);
+  irHoy();
+}
+function syncDeTodosModos(){
+  var ov=document.getElementById('sync-ov');if(ov)ov.remove();
+  _syncOk=true;sincronizar();
+}
 function regsDia(pid,fecha){return (S.asistencia||[]).filter(function(a){return a.pid===pid&&a.fecha===fecha})}
 function ordenReg(a,b){return (a.ord||0)-(b.ord||0)||String(a.id).localeCompare(String(b.id))}
 function porNombre(a,b){return norm2(a.nombre).localeCompare(norm2(b.nombre))}
@@ -2480,6 +2543,7 @@ function toggleCuaVista(){_cuaVerTodo=!_cuaVerTodo;renderCuadrillas()}
 
 function renderCuadrillas(){
   if(!S.asistencia)S.asistencia=[];
+  actualizarAvisoSinActividad();
   var hist=_cuaVerTodo;
   document.getElementById('cua-dia').style.display=hist?'none':'block';
   document.getElementById('cua-historial').style.display=hist?'block':'none';
