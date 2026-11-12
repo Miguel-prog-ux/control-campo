@@ -2148,8 +2148,10 @@ function _pendLista(f){
   var m={};
   (S.asistencia||[]).forEach(function(a){
     if(a.conceptoId!==GENERAL_ID||a.fecha!==f)return;
-    var k=a.pid||a.trabajador;
-    if(!m[k])m[k]={pid:a.pid,nombre:a.trabajador,j:0};
+    var pid=a.pid;
+    if(!pid){var pp=(S.personal||[]).filter(function(q){return norm2(q.nombre)===norm2(a.trabajador)})[0];if(pp)pid=pp.id}
+    var k=pid||a.trabajador;
+    if(!m[k])m[k]={pid:pid||a.trabajador,nombre:a.trabajador,j:0};
     m[k].j+=(+a.jornales||0);
   });
   return Object.keys(m).map(function(k){return m[k]}).sort(function(a,b){return norm2(a.nombre).localeCompare(norm2(b.nombre))});
@@ -2224,11 +2226,15 @@ function pendResumen(){
     b.textContent=n?('Asignar '+n+(n===1?' persona':' personas')+' · '+(Math.round(jt*100)/100)+(jt===1?' jornal':' jornales')):'Asignar'}
 }
 function pendAsignar(){
-  var lista=_pendLista(_pendF),k=0;
+  var lista=_pendLista(_pendF),k=0,fallo=[];
   lista.forEach(function(x){
-    var cid=_pendSel[x.pid];if(!cid||!x.pid)return;
-    asignarPersona(x.pid,cid,_pendF);k++;
+    var cid=_pendSel[x.pid];if(!cid)return;
+    if(asignarPersona(x.pid,cid,_pendF)!==false){
+      k++;
+      (S.asistencia||[]).filter(function(a){return !a.pid&&a.conceptoId===GENERAL_ID&&a.fecha===_pendF&&norm2(a.trabajador)===norm2(x.nombre)}).forEach(borrarReg);
+    }else fallo.push(x.nombre);
   });
+  if(fallo.length)toast('No se pudo asignar: '+fallo.join(', '),4500);
   if(!k)return;
   guardarCambiosAsistencia();
   actualizarAvisoSinActividad();
@@ -2391,8 +2397,10 @@ function setHorasDia(pid,fecha,h){
 // Asigna a una persona a una actividad en una fecha. Devuelve true si la asignación era nueva.
 function asignarPersona(pid,conceptoId,fecha){
   var p=personaPorId(pid);
-  if(!p||p.baja)return false;
   var regs=regsDia(pid,fecha);
+  if(!p&&regs.length)p={id:pid,nombre:regs[0].trabajador,puesto:regs[0].oficio};   // persona borrada del personal pero con asistencia ese día
+  if(!p)return false;
+  if(p.baja&&!regs.length)return false;   // de baja: solo se completan días donde ya tenía asistencia
   if(!regs.length){marcarPresente(pid,fecha);regs=regsDia(pid,fecha)}
   var ya=regs.some(function(a){return a.conceptoId===conceptoId});
   if(!ya){
