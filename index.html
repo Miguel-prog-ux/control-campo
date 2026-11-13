@@ -822,6 +822,7 @@ input[type=file]{display:none}
         </div>
 
         <button class="btn-main btn-block" id="btn-continuar" onclick="continuarActividades()" style="display:none;margin-bottom:8px"></button>
+        <div id="nota-terminaron" style="display:none;margin:0 0 8px;padding:8px 10px;border-radius:8px;background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.35);font-size:12px;color:var(--tx2)"></div>
         <button class="btn-main btn-block" id="btn-asignar" onclick="abrirAsignar()">＋ Asignar actividad</button>
 
         <div class="blk asig" id="cua-asignar">
@@ -2191,11 +2192,13 @@ function dibujarPendientes(){
   var rows=lista.map(function(x){
     var sel=_pendSel[x.pid]||'';
     var sug=_pendSugerido(x.pid,f,delDia)===sel&&sel?' <small style="color:var(--acc)">★ sugerida</small>':'';
+    var pb=personaPorId(x.pid),tagB=(pb&&pb.baja)?' <small style="color:#F87171;font-weight:400">(de baja)</small>':'';
     return '<div style="padding:10px 0;border-top:1px solid var(--line2)">'
-      +'<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:var(--tx)">'+esc(x.nombre)+'</b>'
+      +'<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:var(--tx)">'+esc(x.nombre)+tagB+'</b>'
       +'<span style="color:var(--muted);font-size:12px">'+x.j+(x.j===1?' jornal':' jornales')+sug+'</span></div>'
       +'<select onchange="pendElegir(\''+x.pid+'\',this.value)" style="width:100%;margin-top:6px;background:var(--input);border:1.5px solid var(--line);border-radius:8px;color:var(--tx);font-size:14px;padding:9px 10px">'
-      +_optConceptos(sel,delDia)+'</select></div>';
+      +_optConceptos(sel,delDia)+'</select>'
+      +'<button class="btn-chip" onclick="pendNoTrabajo(\''+String(x.pid).replace(/\\/g,'\\\\').replace(/\'/g,"\\'")+'\')" style="margin-top:6px;color:#F87171">No trabajó este día</button></div>';
   }).join('');
   ov.innerHTML='<div style="background:var(--card);border:1px solid var(--line2);border-radius:14px;width:100%;max-width:480px;max-height:92vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px 8px"><div style="font-weight:800;font-size:16px;color:var(--tx)">Pendientes del '+fmtFechaCorta(f)+'</div>'
@@ -2208,6 +2211,17 @@ function dibujarPendientes(){
     +'<div style="font-size:11px;color:var(--muted);margin:6px 0 8px">¿Trabajó en dos actividades ese día? Asígnalo a una aquí y luego agrégalo a la otra desde Cuadrillas: su jornal se reparte entre las dos.</div>'
     +'<button class="btn-ghost btn-block" onclick="document.getElementById(\'pend-ov\').remove()" style="margin-bottom:0">Cerrar</button></div></div>';
   pendResumen();
+}
+function pendNoTrabajo(k){
+  var f=_pendF,x=_pendLista(f).filter(function(q){return String(q.pid)===String(k)})[0];
+  var nom=x?x.nombre:'esta persona';
+  if(!confirm('¿'+nom+' no trabajó el '+fmtFechaCorta(f)+'?\n\nSe quita su asistencia de ese día y no se le paga ese jornal.'))return;
+  (S.asistencia||[]).filter(function(a){return a.conceptoId===GENERAL_ID&&a.fecha===f&&String(a.pid||a.trabajador)===String(k)}).forEach(borrarReg);
+  delete _pendSel[k];
+  guardarCambiosAsistencia();
+  actualizarAvisoSinActividad();
+  dibujarPendientes();
+  toast(nom+': quitado de ese día');
 }
 function pendElegir(pid,cid){_pendSel[pid]=cid;pendResumen()}
 function pendResumen(){
@@ -2866,7 +2880,33 @@ function continuarActividades(){
   if(n){guardarCambiosAsistencia();toast('✓ '+n+' asignaciones continuadas (como el '+fmtFechaCorta(pc.fa)+')')}
   renderCuadrillas();
 }
+// Personas activas cuyas actividades del día anterior ya llegaron al 100%: necesitan una actividad nueva
+function terminaronActividad(f){
+  var fa=fechaAnteriorConAsistencia(f),por={};
+  if(!fa)return [];
+  (S.asistencia||[]).forEach(function(a){
+    if(a.fecha!==fa||!a.pid||a.conceptoId===GENERAL_ID)return;
+    var c=conceptoPorId(a.conceptoId);if(!c)return;
+    var o=por[a.pid]||(por[a.pid]={todas:true,n:0});
+    o.n++;
+    if((S.avances[c.id]||0)<(c.contratado||1))o.todas=false;
+  });
+  var r=[];
+  Object.keys(por).forEach(function(pid){
+    var p=personaPorId(pid);
+    if(!p||p.baja||!por[pid].todas)return;
+    if(regsDia(pid,f).some(function(x){return x.conceptoId!==GENERAL_ID}))return;   // ya tiene actividad hoy
+    r.push(p.nombre);
+  });
+  return r.sort();
+}
 function actualizarBtnContinuar(){
+  var nt=document.getElementById('nota-terminaron');
+  if(nt){
+    var t=terminaronActividad(fechaSel());
+    nt.style.display=t.length?'':'none';
+    nt.innerHTML=t.length?('✔ <b>Terminaron su actividad</b> (necesitan una nueva): '+t.map(esc).join(', ')):'';
+  }
   var b=document.getElementById('btn-continuar');if(!b)return;
   var pc=pendientesContinuar(fechaSel());
   var pers={};pc.lista.forEach(function(x){pers[x.pid]=1});
@@ -2968,9 +3008,13 @@ function guardarPersona(pid){
 function bajaPersona(pid){
   var p=personaPorId(pid);
   if(!p)return;
-  if(!p.baja&&!confirm('¿Dar de baja a '+p.nombre+'?\n\nYa no aparecerá en tu lista diaria. Su historial y su nómina se conservan, y puedes darlo de alta de nuevo cuando quieras.'))return;
+  if(!p.baja&&!confirm('¿Dar de baja a '+p.nombre+'?\n\nYa no aparecerá en tu lista diaria. Su historial y su nómina se conservan (si hoy estaba marcado presente sin actividad, se le quita esa asistencia). Puedes darlo de alta de nuevo cuando quieras.'))return;
   p.baja=!p.baja;p.ts=Date.now();
-  if(p.baja)delete _sel[pid];
+  if(p.baja){
+    delete _sel[pid];
+    var hoyB=fechaHoyIso();
+    (S.asistencia||[]).filter(function(a){return a.pid===pid&&a.conceptoId===GENERAL_ID&&a.fecha>=hoyB}).forEach(borrarReg);
+  }
   guardarCambiosAsistencia();renderCuadrillas();renderGestion();
   toast(p.baja?p.nombre+' dado de baja':p.nombre+' dado de alta');
 }
