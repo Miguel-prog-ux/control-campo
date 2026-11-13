@@ -1432,7 +1432,7 @@ function pctEsperado(c){
   return Math.max(0,Math.min(1,e/t));
 }
 function estadoConcepto(c){
-  var p=(S.avances[c.id]||0)/(c.contratado||1);
+  var p=Math.round((S.avances[c.id]||0)/(c.contratado||1)*10000)/10000;   // evita 0.99999 por decimales
   if(p>=1)return 'done';
   if(p<=0)return 'none';
   return p<pctEsperado(c)-0.12?'late':'prog';
@@ -1526,7 +1526,7 @@ function actualizarKPIs(){
   var total=0,done=0,prog=0,pend=0,late=0,sumPres=0,totPes=0;
   S.conceptos.forEach(function(c){sumPres+=Number(c.presupuesto)||0});
   S.conceptos.forEach(function(c){
-    var p=(S.avances[c.id]||0)/(c.contratado||1);
+    var p=Math.round((S.avances[c.id]||0)/(c.contratado||1)*10000)/10000;   // evita 0.99999 por decimales
     var w=sumPres>0?(Number(c.presupuesto)||0)/sumPres:1/S.conceptos.length;
     totPes+=w*Math.min(p,1);
     total+=Math.min(p,1);
@@ -2173,7 +2173,7 @@ function _optConceptos(sel,delDia){
   var h='<option value="">— elegir actividad —</option>';
   if(sug.length)h+='<optgroup label="Con avance ese día">'+sug.map(function(c){return '<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+lab(c)+'</option>'}).join('')+'</optgroup>';
   h+='<optgroup label="Todas las actividades">'+resto.map(function(c){
-    var fin=(S.avances[c.id]||0)>=(c.contratado||1);
+    var fin=((S.avances[c.id]||0)+1e-6>=(c.contratado||1));
     return '<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+lab(c)+(fin?' ✓':'')+'</option>'}).join('')+'</optgroup>';
   return h;
 }
@@ -2560,7 +2560,7 @@ function actividadVigente(pid,fecha){
   if(!best)return null;
   var c=conceptoPorId(best.conceptoId);
   if(!c)return null;
-  if((S.avances[c.id]||0)>=(c.contratado||1))return null;
+  if(((S.avances[c.id]||0)+1e-6>=(c.contratado||1)))return null;
   return c;
 }
 // ✕ en una actividad: dos opciones (sigue presente para moverlo / no vino hoy)
@@ -2846,7 +2846,7 @@ function marcarDeAyer(){
       if(r.conceptoId===GENERAL_ID||acts.indexOf(r.conceptoId)>=0)return;
       var c=conceptoPorId(r.conceptoId);
       if(!c)return;
-      if((S.avances[c.id]||0)>=(c.contratado||1))return;   // ya terminada
+      if(((S.avances[c.id]||0)+1e-6>=(c.contratado||1)))return;   // ya terminada
       acts.push(r.conceptoId);
     });
     marcarPresente(a.pid,f);n++;
@@ -2866,7 +2866,7 @@ function pendientesContinuar(f){
     if(vistos[k])return;vistos[k]=true;
     var p=personaPorId(a.pid),c=conceptoPorId(a.conceptoId);
     if(!p||p.baja||!c)return;
-    if((S.avances[c.id]||0)>=(c.contratado||1))return;
+    if(((S.avances[c.id]||0)+1e-6>=(c.contratado||1)))return;
     if(regsDia(a.pid,f).some(function(r){return r.conceptoId===a.conceptoId}))return;
     res.push({pid:a.pid,cid:a.conceptoId});
   });
@@ -2889,7 +2889,7 @@ function terminaronActividad(f){
     var c=conceptoPorId(a.conceptoId);if(!c)return;
     var o=por[a.pid]||(por[a.pid]={todas:true,n:0});
     o.n++;
-    if((S.avances[c.id]||0)<(c.contratado||1))o.todas=false;
+    if(((S.avances[c.id]||0)+1e-6<(c.contratado||1)))o.todas=false;
   });
   var r=[];
   Object.keys(por).forEach(function(pid){
