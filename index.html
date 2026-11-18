@@ -2445,13 +2445,13 @@ function mezclarPersonal(remoto){
     if(S.borrados&&S.borrados[r.id])return;
     var l=personaPorId(r.id);
     if(l){
-      if((r.ts||0)>(l.ts||0)){l.nombre=r.nombre;l.puesto=r.puesto||'Otro';l.baja=!!r.baja;l.ts=r.ts;changed=true}
+      if((r.ts||0)>(l.ts||0)){l.nombre=r.nombre;l.puesto=r.puesto||'Otro';l.baja=!!r.baja;l.fbaja=r.fbaja||'';l.ts=r.ts;changed=true}
       return;
     }
     var k=norm2(r.nombre);
     var m=S.personal.filter(function(p){return norm2(p.nombre)===k})[0];
     if(m){remap[r.id]=m.id;return}   // misma persona dada de alta con otro id en otro dispositivo
-    S.personal.push({id:r.id,nombre:r.nombre,puesto:r.puesto||'Otro',baja:!!r.baja,ts:r.ts||0});
+    S.personal.push({id:r.id,nombre:r.nombre,puesto:r.puesto||'Otro',baja:!!r.baja,fbaja:r.fbaja||'',ts:r.ts||0});
     changed=true;
   });
   return {changed:changed,remap:remap};
@@ -2953,7 +2953,7 @@ function agregarTrabajador(){
   var fecha=fechaSel();
   if(ex){
     if(!ex.baja){toast('Ya existe: '+ex.nombre+'. Tócalo para marcarlo presente.');return}
-    ex.baja=false;ex.ts=Date.now();
+    ex.baja=false;ex.fbaja='';ex.ts=Date.now();
     marcarPresente(ex.id,fecha);
     toast('Se reactivó a '+ex.nombre);
   }else{
@@ -3010,6 +3010,7 @@ function bajaPersona(pid){
   if(!p)return;
   if(!p.baja&&!confirm('¿Dar de baja a '+p.nombre+'?\n\nYa no aparecerá en tu lista diaria. Su historial y su nómina se conservan (si hoy estaba marcado presente sin actividad, se le quita esa asistencia). Puedes darlo de alta de nuevo cuando quieras.'))return;
   p.baja=!p.baja;p.ts=Date.now();
+  p.fbaja=p.baja?fechaHoyIso():'';
   if(p.baja){
     delete _sel[pid];
     var hoyB=fechaHoyIso();
