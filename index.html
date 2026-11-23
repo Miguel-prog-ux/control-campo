@@ -484,6 +484,9 @@ input[type=file]{display:none}
 .qfilt input,.qfilt select{background:var(--input);border:1.5px solid var(--line);border-radius:8px;color:var(--tx);font-family:'Barlow',sans-serif;font-size:14px;padding:8px 10px;min-width:0}
 .qfilt input{flex:1}.qfilt select{max-width:44%}
 .qacts{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 8px}
+.grp-h{flex-basis:100%;width:100%;display:flex;align-items:center;gap:6px;margin:8px 0 2px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--tx2);cursor:pointer;border-bottom:1px solid var(--bd,rgba(128,128,128,.25));padding-bottom:3px}
+.grp-h span{font-weight:500;opacity:.7}
+.grp-h .chev{font-style:normal;transition:transform .15s}
 .qsec{display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--tx2)}
 .qsec small{font-family:'Barlow',sans-serif;text-transform:none;letter-spacing:0;font-weight:600;color:var(--muted)}
 .pc{border:1.5px solid var(--line2);background:var(--card2);border-radius:var(--r-sm);margin-top:6px;overflow:hidden}
@@ -538,6 +541,9 @@ input[type=file]{display:none}
 .stepper span{min-width:44px;text-align:center;font-family:'Roboto Mono',monospace;font-size:13px;font-weight:600;color:var(--tx);background:var(--input);line-height:32px;display:inline-block}
 .btn-quitar{background:var(--late-bg);color:var(--late);border:none;border-radius:6px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif}
 .nuevo{display:none;margin-top:10px}.nuevo.open{display:block}
+.ofi-inp{padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+.ofi-box{position:fixed;z-index:99999;display:none;background:var(--input);border:2px solid var(--acc);border-radius:10px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.45);-webkit-overflow-scrolling:touch}
+.ofi-box div{padding:12px 14px;font-size:15px;color:var(--tx);border-bottom:1px solid var(--line);cursor:pointer}.ofi-box div:last-child{border-bottom:0}.ofi-box div:active{background:var(--line)}
 .nt-chk{display:flex;align-items:center;gap:8px;margin:2px 2px 10px;font-size:13px;color:var(--muted);cursor:pointer}.nt-chk input{width:18px;height:18px;margin:0;accent-color:var(--accent,#38bdf8)}
 .cua-inp{
   width:100%;border:2px solid var(--line);border-radius:var(--r-sm);
@@ -808,13 +814,7 @@ input[type=file]{display:none}
           <button class="btn-ghost" onclick="toggleNuevoTrab()">＋ Nuevo trabajador</button>
           <div class="nuevo" id="cua-nuevo">
             <input class="cua-inp" id="nt-nombre" type="text" placeholder="Nombre completo" autocapitalize="words" autocorrect="off">
-            <input class="cua-inp" id="nt-puesto" list="cua-oficio-list" placeholder="Oficio / categoría" autocorrect="off">
-            <datalist id="cua-oficio-list">
-              <option>Supervisor</option><option>Sobrestante</option><option>Cabo</option>
-              <option>Albañil</option><option>Ayudante</option><option>Fierrero</option>
-              <option>Carpintero</option><option>Plomero</option><option>Electricista</option>
-              <option>Soldador</option><option>Pintor</option><option>Aluminiero</option><option>Otro</option>
-            </datalist>
+            <input class="cua-inp ofi-inp" id="nt-puesto" autocomplete="off" placeholder="Oficio / categoría" autocorrect="off">
             <label class="nt-chk"><input type="checkbox" id="nt-presente" checked onchange="ntActualizarBtn()"><span id="nt-presente-txt">Marcar presente</span></label>
             <button class="btn-main btn-block" id="nt-btn" onclick="agregarTrabajador()">Agregar y marcar presente</button>
           </div>
@@ -2755,8 +2755,39 @@ function coincideBusqueda(p){
   if(_qBuscar&&norm2(p.nombre+' '+(p.puesto||'')).indexOf(norm2(_qBuscar))<0)return false;
   return true;
 }
+var GRP_NOM=['Residente y Supervisión','Sobrestante y Cabo','Oficiales','Ayudantes'];
+var _grpCerrado={};
+function rangoCat(p){
+  var o=norm2(p.puesto||'');
+  if(o.indexOf('residente')===0||o.indexOf('superintendente')===0)return 0;
+  if(o.indexOf('supervisor')===0)return 0;
+  if(o.indexOf('sobrestante')===0||o.indexOf('cabo')===0)return 1;
+  if(o.indexOf('ayudante')===0||o.indexOf('peon')===0)return 3;
+  return 2;
+}
+function ordenGrupo(a,b){
+  var ra=rangoCat(a),rb=rangoCat(b);
+  if(ra!==rb)return ra-rb;
+  if(ra===2){var c=norm2(a.puesto||'').localeCompare(norm2(b.puesto||''));if(c)return c}
+  return norm2(a.nombre).localeCompare(norm2(b.nombre));
+}
+function togGrp(k){_grpCerrado[k]=!_grpCerrado[k];renderCuadrillas()}
+function grpHead(k,g,n){
+  return '<div class="grp-h" onclick="togGrp(\''+k+'\')"><i class="chev" style="transform:'+(_grpCerrado[k]?'rotate(-90deg)':'none')+'">▾</i>'+GRP_NOM[g]+' <span>('+n+')</span></div>';
+}
+function agrupar(arr,pref,fn){
+  var out='';
+  for(var g=0;g<4;g++){
+    var l=arr.filter(function(p){return rangoCat(p)===g});
+    if(!l.length)continue;
+    var k=pref+g;
+    out+=grpHead(k,g,l.length);
+    if(!_grpCerrado[k])out+=l.map(fn).join('');
+  }
+  return out;
+}
 function renderPersonalDia(fecha){
-  var activos=(S.personal||[]).filter(function(p){return !p.baja}).sort(porNombre);
+  var activos=(S.personal||[]).filter(function(p){return !p.baja}).sort(ordenGrupo);
   // Filtros: solo estorban si la lista es corta
   var qf=document.getElementById('qfilt');
   qf.classList.toggle('on',activos.length>8);
@@ -2786,9 +2817,9 @@ function renderPersonalDia(fecha){
   document.getElementById('qn-aus').textContent='('+(filtrando?sinF.length+' de '+sin.length:sin.length)+')';
   var verTodos=_verTodosAus||filtrando||sinF.length<=LIM_AUS;
   var mostrarAus=verTodos?sinF:sinF.slice(0,LIM_AUS);
-  document.getElementById('cua-sinmarcar').innerHTML=mostrarAus.map(function(p){
+  document.getElementById('cua-sinmarcar').innerHTML=agrupar(mostrarAus,'s',function(p){
     return '<button class="pchip" onclick="marcarUno(\''+p.id+'\')">＋ '+esc(p.nombre)+' <small>'+esc(p.puesto||'Otro')+'</small></button>';
-  }).join('');
+  });
   var masBox=document.getElementById('qmas');
   if(!verTodos){masBox.style.display='block';document.getElementById('btn-masaus').textContent='Ver los '+(sinF.length-LIM_AUS)+' restantes ▾'}
   else if(_verTodosAus&&!filtrando&&sinF.length>LIM_AUS){masBox.style.display='block';document.getElementById('btn-masaus').textContent='Mostrar menos ▴'}
@@ -2801,13 +2832,12 @@ function renderPersonalDia(fecha){
   document.getElementById('chev-pres').style.transform=presAb?'':'rotate(-90deg)';
   document.getElementById('qsec-pres').style.display=pres.length?'flex':'none';
   document.getElementById('qn-pres').textContent='('+(filtrando?presF.length+' de '+pres.length:pres.length)+')';
-  var html='';
-  presF.forEach(function(p){
+  var html=agrupar(presF,'p',function(p){
     var regs=regsDia(p.id,fecha);
     var pm=paramDia(regs);
     var reales=regs.filter(function(a){return a.conceptoId!==GENERAL_ID}).length;
     var he=pm.hd?' · '+pm.hd+' h extra':'';
-    html+='<div class="pc'+(_pAbierto[p.id]?' open':'')+'" id="pc-'+p.id+'">'
+    return '<div class="pc'+(_pAbierto[p.id]?' open':'')+'" id="pc-'+p.id+'">'
       +'<div class="pc-row" onclick="togPres(\''+p.id+'\')"><div class="pres-ic">✓</div>'
       +'<div class="pc-b"><div class="pc-name">'+esc(p.nombre)+'</div>'
       +'<div class="pc-meta'+(reales?'':' warn')+'">'+esc(p.puesto||'Otro')+' · '
@@ -2950,6 +2980,47 @@ function toggleNuevoTrab(){
     setTimeout(function(){document.getElementById('nt-nombre').focus()},100);
   }
 }
+var OFICIOS_BASE=['Residente','Supervisor','Sobrestante','Cabo','Albañil','Ayudante','Fierrero','Carpintero','Plomero','Electricista','Soldador','Pintor','Aluminiero','Otro'];
+function oficiosLista(){
+  var out=[],vistos={};
+  function add(x){x=String(x||'').trim();if(!x)return;var k=norm2(x);if(vistos[k])return;vistos[k]=1;out.push(x)}
+  (S.oficios&&S.oficios.length?S.oficios:OFICIOS_BASE).forEach(add);
+  (S.personal||[]).forEach(function(p){add(p.puesto)});
+  return out;
+}
+var _ofiBox=null,_ofiInp=null;
+function ofiBox(){
+  if(!_ofiBox){
+    _ofiBox=document.createElement('div');_ofiBox.className='ofi-box';document.body.appendChild(_ofiBox);
+    _ofiBox.addEventListener('mousedown',function(e){e.preventDefault()});
+  }
+  return _ofiBox;
+}
+function ofiOcultar(){if(_ofiBox)_ofiBox.style.display='none'}
+function ofiMostrar(inp){
+  var b=ofiBox(),q=norm2(inp.value),lista=oficiosLista().filter(function(x){return !q||norm2(x).indexOf(q)>=0});
+  if(!lista.length||(lista.length===1&&norm2(lista[0])===q)){ofiOcultar();return}
+  b.innerHTML=lista.map(function(x,i){return '<div data-i="'+i+'">'+esc(x)+'</div>'}).join('');
+  var r=inp.getBoundingClientRect();
+  b.style.left=r.left+'px';b.style.width=r.width+'px';b.style.top=(r.bottom+2)+'px';
+  b.style.maxHeight=Math.max(120,window.innerHeight-r.bottom-12)+'px';
+  b.style.display='block';b._lista=lista;_ofiInp=inp;
+}
+document.addEventListener('focusin',function(e){if(e.target.classList&&e.target.classList.contains('ofi-inp'))ofiMostrar(e.target)});
+document.addEventListener('input',function(e){if(e.target.classList&&e.target.classList.contains('ofi-inp'))ofiMostrar(e.target)});
+document.addEventListener('focusout',function(e){if(e.target.classList&&e.target.classList.contains('ofi-inp'))setTimeout(ofiOcultar,250)});
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(_ofiBox&&t.parentNode===_ofiBox&&_ofiInp&&_ofiBox._lista){
+    var v=_ofiBox._lista[+t.getAttribute('data-i')];
+    if(v===undefined)return;
+    _ofiInp.value=v;
+    _ofiInp.dispatchEvent(new Event('input',{bubbles:true}));
+    _ofiInp.dispatchEvent(new Event('change',{bubbles:true}));
+    ofiOcultar();
+  }
+});
+window.addEventListener('scroll',function(e){if(e.target!==_ofiBox)ofiOcultar()},true);
 function ntActualizarBtn(){
   var c=document.getElementById('nt-presente'),b=document.getElementById('nt-btn');
   if(c&&b)b.textContent=c.checked?'Agregar y marcar presente':'Solo agregar';
@@ -2991,7 +3062,7 @@ function renderGestion(){
   function fila(p){
     return '<div class="gp-row'+(p.baja?' baja':'')+'">'
       +'<input class="cua-inp" id="gp-n-'+p.id+'" value="'+escAttr(p.nombre)+'" autocapitalize="words">'
-      +'<input class="cua-inp" id="gp-o-'+p.id+'" value="'+escAttr(p.puesto||'')+'" list="cua-oficio-list">'
+      +'<input class="cua-inp ofi-inp" id="gp-o-'+p.id+'" value="'+escAttr(p.puesto||'')+'" autocomplete="off">'
       +'<button class="btn-chip" onclick="guardarPersona(\''+p.id+'\')">Guardar</button>'
       +'<button class="btn-chip" onclick="bajaPersona(\''+p.id+'\')">'+(p.baja?'Dar de alta':'Dar de baja')+'</button>'
       +(p.baja?'<button class="btn-chip" style="color:#F87171" onclick="eliminarPersona(\''+p.id+'\')">Eliminar</button>':'')
